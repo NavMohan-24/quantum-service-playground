@@ -4,13 +4,13 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy requirements file
-COPY simulator_requirements.txt requirements.txt
+COPY simulator_service/simulator_requirements.txt requirements.txt
 
 # install python packages.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy application code
-COPY simulator_service.py simulator_service.py
+COPY simulator_service/simulator_service.py simulator_service.py
 
 # PORT specifcation
 EXPOSE 5001
