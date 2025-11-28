@@ -4,8 +4,10 @@ import io
 import os
 import uuid
 import json
+import warnings
 
 from qiskit.providers import BackendV2, Options, JobV1 as Job
+from qiskit_aer import AerSimulator
 from qiskit import qpy
 from qiskit_ibm_runtime.utils import RuntimeDecoder
 
@@ -22,6 +24,9 @@ class RemoteAerJob(Job):
         from qiskit.providers import JobStatus
         return JobStatus.DONE
     
+    def submit(self):
+        pass
+    
 
 class RemoteAerBackend(BackendV2):
 
@@ -29,8 +34,10 @@ class RemoteAerBackend(BackendV2):
         super().__init__(
             provider=None,
             name= "RemoteAerSimulator",
-            description= "AerSimulator Implementation in K8s pod"
+            description= "AerSimulator Implementation in k8s pod"
         )
+
+        self._target = AerSimulator().target
 
         self.simulator_url = simulator_url or os.getenv(
             'SIMULATOR_SERVICE_URL', 
@@ -44,7 +51,7 @@ class RemoteAerBackend(BackendV2):
     def _default_options(cls):
         return Options(shots=1024)#, seed_simulator=None, method="automatic")
     
-
+  
     def run(self, circuits, **options):
         # Get options
         shots = options.get('shots', 1024)
@@ -97,8 +104,15 @@ class RemoteAerBackend(BackendV2):
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to reach simulator: {str(e)}")
         
-    # def get_remote_aer_simulator():
-    #     return RemoteAerBackend()
+    @property
+    def target(self):
+        return self._target
+    
+    @property
+    def max_circuits(self):
+        return None
+
+        
         
 
             
