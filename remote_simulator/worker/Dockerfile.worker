@@ -1,0 +1,17 @@
+# Debian Slim
+FROM python:3.12-slim 
+
+WORKDIR /app
+
+# Install requirements
+COPY worker/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy worker and backend files
+COPY worker/worker.py /app/
+
+COPY remote_aer_backend.py  /app/
+
+# Keep container running
+CMD ["tail", "-f", "/dev/null"]
+
