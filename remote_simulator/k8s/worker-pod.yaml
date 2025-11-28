@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qiskit-worker-pod
+  labels:
+    app: qiskit-worker
+    component: worker
+spec:
+  containers:
+  - name: worker
+    image: qiskit-worker:v1
+    imagePullPolicy: Never  # Important for local Minikube images
+    env:
+    - name: SIMULATOR_SERVICE_URL
+      value: "http://aer-simulator-service:5001"
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+    # Optional: Add liveness probe
+    livenessProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - "ps aux | grep -v grep | grep 'tail -f' || exit 1"
+      initialDelaySeconds: 10
+      periodSeconds: 30
