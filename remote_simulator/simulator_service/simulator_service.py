@@ -1,23 +1,27 @@
 import json
+import io
+import base64
+import os
 
 from flask import Flask, request, Response, jsonify
 from qiskit import QuantumCircuit, transpile,qpy
 from qiskit_aer import AerSimulator
-from qiskit_ibm_runtime import SamplerV2
+from qiskit_ibm_runtime import QiskitRuntimeService,SamplerV2
 from qiskit_ibm_runtime.utils import RuntimeEncoder, RuntimeDecoder
 
-
-import io
-import base64
 
 # set up a webserver instance 
 app = Flask(__name__)  #__name__ denotes module name
 
-# initialize the simulator   
-print("Initializing AerSimulator...")
-simulator = AerSimulator()
-sampler = SamplerV2(mode=simulator)
-print("AerSimulator initialized successfully")
+IBM_API_KEY = os.getenv('IBM_API_KEY')
+IBM_INSTANCE = os.getenv('IBM_INSTANCE')  
+
+# # initialize the simulator   
+# print("Initializing AerSimulator...")
+# simulator = AerSimulator()
+# sampler = SamplerV2(mode=simulator)
+# print("AerSimulator initialized successfully")
+
 
 
 @app.route("/health")
@@ -27,17 +31,27 @@ def health():
 @app.route("/execute", methods=['POST']) # only accepts POST method.
 def execute():
 
+    data = request.get_json()
+
+    # decode the circuit
+    circuits_b64 = data.get('isa_circuits_b64')
+    shots = data.get("shots", 1024)
+    backend_name = data.get("backend_name", "ibm_torino")
+
+
+    if not circuits_b64:
+        return jsonify({"error": "No circuits provided"}), 400
+    
+    service = QiskitRuntimeService(
+    channel="ibm_quantum_platform",
+    token = IBM_API_KEY,
+    instance= IBM_INSTANCE)
+
+    backend = service.backend(name = backend_name)
+    simulator = AerSimulator.from_backend(backend=backend)
+    sampler = SamplerV2(mode=simulator)
+
     try:
-        data = request.get_json()
-
-        # decode the circuit
-        circuits_b64 = data.get('circuits_qpy')
-        shots = data.get("shots", 1024)
-        # method = data.get("method", "automatic")
-
-
-        if not circuits_b64:
-            return jsonify({"error": "No circuits provided"}), 400
         
         # deserialize circuits
         circuits_bytes = base64.b64decode(circuits_b64)
