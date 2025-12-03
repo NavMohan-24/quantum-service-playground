@@ -1,26 +1,24 @@
-# SIMULATOR SERVICE - POD
-
 apiVersion: v1
 kind: Pod
 metadata:
-  name: aer-simulator-pod
+  name: transpiler-pod
   labels:
-    app: aer-simulator
-    component: simulator
+    app: transpiler
+
 spec:
   containers:
-  - name: simulator
-    image: aer-simulator:v2
-    imagePullPolicy: Never  # k8s will not try to pull image from registry
+  - name: compiler
+    image: transpiler:v2
+    imagePullPolicy: Never
     ports:
-    - containerPort: 5001 # expose the container via this port
+    - containerPort: 5002
       name: http
       protocol: TCP
+    
     env:
-    - name: PYTHONUNBUFFERED # flush the logs.
+    - name: PYTHONUNBUFFERED
       value: "1"
 
-      # load IBM credentials from secret
     - name: IBM_API_KEY
       valueFrom:
         secretKeyRef:
@@ -33,6 +31,10 @@ spec:
           name: ibm-quantum-secret
           key:  instance
           optional: true
+  
+
+    - name: SIMULATOR_SERVICE_URL
+      value: "http://aer-simulator-service:5001"
 
     resources:
       requests: # minimum required resources
@@ -41,35 +43,41 @@ spec:
       limits: # maximum required resources
         memory: "2Gi"
         cpu: "2000m"
+
     livenessProbe: # to check whether the pod is alive
       httpGet:
-        path: /health # http://aer-simulator-service/health
-        port: 5001
+        path: /health 
+        port: 5002
       initialDelaySeconds: 10
       periodSeconds: 30 # check it at 30 seconds interval
       timeoutSeconds: 5
+     
     readinessProbe:
       httpGet:
         path: /health
-        port: 5001
+        port: 5002
       initialDelaySeconds: 5
       periodSeconds: 10
       timeoutSeconds: 3
+
 ---
-#  SIMULATOR SERVICE - Service (Network Access)
+#  TRANSPILER SERVICE - Service (Network Access)
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: aer-simulator-service
+  name: transpiler-service
   labels:
-    app: aer-simulator
+    app: transpiler
 spec:
   selector:
-    app: aer-simulator
+    app: transpiler
   ports:
   - protocol: TCP
-    port: 5001
-    targetPort: 5001
+    port: 5002
+    targetPort: 5002
     name: http
   type: ClusterIP # Available inside the Kubernetes cluster only.
+       
+        
+
