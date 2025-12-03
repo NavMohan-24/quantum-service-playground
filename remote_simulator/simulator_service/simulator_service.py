@@ -55,35 +55,33 @@ def health():
 
 @app.route("/execute", methods=['POST']) # only accepts POST method.
 def execute():
-
-    data = request.get_json()
-
-    # decode the circuit
-    circuits_b64 = data.get('isa_circuits_b64')
-    shots = data.get("shots", 1024)
-    backend_name = data.get("backend_name", "ibm_torino")
-
-
-    if not circuits_b64:
-        return jsonify({"error": "No circuits provided"}), 400
-    
-    service = QiskitRuntimeService(
-    channel="ibm_quantum_platform",
-    token = IBM_API_KEY,
-    instance= IBM_INSTANCE)
-
-    backend = service.backend(name = backend_name)
-    simulator = AerSimulator.from_backend(backend=backend)
-    sampler = SamplerV2(mode=simulator)
-
     try:
+        data = request.get_json()
+
+        # decode the circuit
+        circuits_b64 = data.get('isa_circuits_b64')
+        shots = data.get("shots", 1024)
+        backend_name = data.get("backend_name", "aer-simulator")
+
+
+        if not circuits_b64:
+            return jsonify({"Simulator error": "No circuits provided"}), 400
         
+        if backend_name == "aer-simulator" or not service:
+            simulator = AerSimulator()
+        else:
+            backend = service.backend(name=backend_name)
+            simulator = AerSimulator.from_backend(backend=backend)
+
+        sampler = SamplerV2(mode=simulator)
+
+
         # deserialize circuits
         circuits_bytes = base64.b64decode(circuits_b64)
         with io.BytesIO(circuits_bytes) as fptr:
             circuits = qpy.load(fptr)
 
-        print(f"Received {len(circuits)} circuit(s) for execution with {shots} shots")
+        print(f"Simulator Received {len(circuits)} circuit(s) for execution with {shots} shots")
         
         # # transpile
         # print("Transpiling circuits...")
