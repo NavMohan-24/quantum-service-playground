@@ -10,7 +10,7 @@ qc.measure_all()
 
 # executing it in remote-simulator
 
-backend = RemoteAerBackend()
+backend = RemoteAerBackend(name="ibm_fez")
 job = backend.run(qc, shots=4096)
 result = job.result()
 
