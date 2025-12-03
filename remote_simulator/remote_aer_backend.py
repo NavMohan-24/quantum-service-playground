@@ -33,9 +33,9 @@ class RemoteAerBackend(BackendV2):
     def __init__(self, name): 
         super().__init__(
             provider=None,
+            name = name,
             description= "AerSimulator Implementation in k8s pod"
         )
-        self.backend_name = name
         self._target = AerSimulator().target
 
         self.transpiler_url = os.getenv(
@@ -77,8 +77,8 @@ class RemoteAerBackend(BackendV2):
                 json={
                     'circuits_qpy': circuits_b64,
                     'shots' : shots,
-                    'backend_name' : self.backend_name,
-                    },
+                    'backend_name' : self.name,
+                   },
                 
                 timeout = 300                     
             )
@@ -102,7 +102,7 @@ class RemoteAerBackend(BackendV2):
                 raise Exception(f"Simulator error: {response.text}")
             
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Failed to reach simulator: {str(e)}")
+            raise Exception(f"Failed to reach transpiler: {str(e)}")
         
     @property
     def target(self):
