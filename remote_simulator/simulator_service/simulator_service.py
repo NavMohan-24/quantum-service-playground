@@ -16,12 +16,33 @@ app = Flask(__name__)  #__name__ denotes module name
 IBM_API_KEY = os.getenv('IBM_API_KEY')
 IBM_INSTANCE = os.getenv('IBM_INSTANCE')  
 
-# # initialize the simulator   
-# print("Initializing AerSimulator...")
-# simulator = AerSimulator()
-# sampler = SamplerV2(mode=simulator)
-# print("AerSimulator initialized successfully")
+print("API KEY :",repr(IBM_API_KEY))
+print("Instance :",repr(IBM_INSTANCE))
 
+
+# Initialize service and cache backends at startup
+service = None
+backend_cache = {}
+
+def init_ibm_service():
+    global service
+    try:
+        if IBM_API_KEY:
+            print("Initializing IBM Quantum service...")
+            service = QiskitRuntimeService(
+                channel="ibm_quantum_platform",
+                token=IBM_API_KEY,
+                instance=IBM_INSTANCE
+            )
+            print("✅ IBM service initialized")
+        else:
+            print("⚠️ No IBM API key - using AerSimulator only")
+    except Exception as e:
+        print(f"❌ Failed to init IBM service: {e}")
+        service = None
+
+# Initialize on startup
+init_ibm_service()
 
 
 @app.route("/health")
