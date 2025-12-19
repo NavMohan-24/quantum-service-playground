@@ -198,6 +198,30 @@ func (r* QuantumAerJobReconciler) handleNewJob(ctx context.Context, job *aerjobv
 	return ctrl.Result{Requeue: true}, nil
 }
 
+func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+
+	log := logf.FromContext(ctx, job)
+	log.Info("Handling Pending Job", "job name", job.Name)
+
+	_,err := r.getForPod(ctx, job)
+
+	// if pod is not found create the pod
+	if err != nil && errors.IsNotFound(err){
+		if err := r.createSimulatorPod(ctx,job); err != nil{
+			return ctrl.Result{},err
+		}
+		return ctrl.Result{}, err
+	}
+	// set the job status as In progress
+	job.Status.JobStatus = aerjobv2.Progress
+	if err := r.Status().Update(ctx, job); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Pod exists, transitioning to Progress")
+	return ctrl.Result{Requeue: true}, nil
+}
+
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *QuantumAerJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
