@@ -219,7 +219,141 @@ func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aer
 	}
 
 	log.Info("Pod exists, transitioning to Progress")
-	return ctrl.Result{Requeue: true}, nil
+	return ctrl.Result{RequeueAfter: 5*time.Second}, nil
+}
+
+func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+
+	log := logf.FromContext(ctx)
+	pod, err := r.getForPod(ctx, job)
+
+	if err != nil && errors.IsNotFound(err){
+		job.Status.JobStatus = aerjobv2.Pending
+		job.Status.PodName = "" // Clear pod name
+		if err := r.Status().Update(ctx, job); err != nil {
+			return ctrl.Result{}, err
+		}
+		log.Info("Transitioning back to Pending")
+		return ctrl.Result{Requeue: true}, nil
+	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Handling Running Job", "Job Name", job.Name)
+	switch pod.Status.Phase{
+		
+		case v1.PodFailed :
+			log.Info("Pod failed", "retries", job.Status.Retries, "maxRetries", job.Spec.MaxRetries)
+			
+			if job.Status.Retries < job.Spec.MaxRetries{
+
+				// Delete failed pod
+				if err := r.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
+					return ctrl.Result{}, err
+				}
+
+				job.Status.Retries++
+				job.Status.JobStatus = aerjobv2.Pending
+				job.Status.PodName = "" // Clear pod name for new pod
+				if err := r.Status().Update(ctx,job); err != nil{
+					return ctrl.Result{}, err
+				}
+				return ctrl.Result{RequeueAfter: 10*time.Second}, nil
+			} else {
+				log.Info("Max retries exceeded, marking job as Failed")
+				job.Status.JobStatus = aerjobv2.Failed
+				now := metav1.Now()
+				job.Status.CompletionTime = &now
+				if err := r.Status().Update(ctx,job); err != nil{
+						return ctrl.Result{}, err
+					}
+				return ctrl.Result{RequeueAfter: 60*time.Second}, nil
+			}	
+		
+		case v1.PodSucceeded :
+			now := metav1.Now()
+			job.Status.CompletionTime = &now
+			log.Info("Pod suceeded,marking job as Completed")
+			job.Status.JobStatus = aerjobv2.Failed
+
+			if err := r.Status().Update(ctx,job); err != nil{
+					return ctrl.Result{}, err
+				}
+			return ctrl.Result{RequeueAfter: 60*time.Second}, nil
+			
+		case v1.PodPending, v1.PodRunning :
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+
+	log := logf.FromContext(ctx)
+	pod, err := r.getForPod(ctx, job)
+
+	if err != nil && errors.IsNotFound(err){
+		job.Status.JobStatus = aerjobv2.Pending
+		job.Status.PodName = "" // Clear pod name
+		if err := r.Status().Update(ctx, job); err != nil {
+			return ctrl.Result{}, err
+		}
+		log.Info("Transitioning back to Pending")
+		return ctrl.Result{Requeue: true}, nil
+	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if job.Status.JobStatus == aerjobv2.Completed || job.Status.JobStatus == aerjobv2.Failed {
+
+		log.Info("Job in terminal state, cleaning up the pods")
+		if err := r.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+
+		// Deleting the CR if it exceeds TTL
+		if job.Spec.TTLSecondsAfterFinished != nil && job.Status.CompletionTime != nil{
+
+			ttl := time.Duration(*job.Spec.TTLSecondsAfterFinished)*time.Second
+			elapsed := time.Since(job.Status.CompletionTime.Time)
+
+			if elapsed >= ttl {
+				log.Info("TTL exceeded, deleting QuantumJob CR", 
+					"name", job.Name, 
+					"ttl", ttl, 
+					"elapsed", elapsed)
+
+				if err := r.Delete(ctx, job); err != nil {
+					if errors.IsNotFound(err) {
+						// Already deleted, nothing to do
+						return ctrl.Result{}, nil
+					}
+				log.Error(err, "Failed to delete QuantumJob CR")
+				return ctrl.Result{}, err
+				}
+			
+				log.Info("QuantumJob CR deleted successfully", "name", job.Name)
+				return ctrl.Result{}, nil
+			}
+			// TTL not yet reached, schedule next check
+			remaining := ttl - elapsed
+			log.Info("TTL not reached, requeueing", 
+				"remaining", remaining, 
+				"nextCheck", time.Now().Add(remaining))
+			
+			return ctrl.Result{RequeueAfter: remaining}, nil
+		}else{
+			// No TTL set, job will remain indefinitely
+			log.Info("No TTL set, job will be retained", "name", job.Name)
+			return ctrl.Result{}, nil
+		}
+	
+	}
+	// job is not in terminal state thus requeue
+	return ctrl.Result{Requeue: true}, nil	
 }
 
 
