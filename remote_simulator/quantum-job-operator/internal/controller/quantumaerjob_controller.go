@@ -339,28 +339,45 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
 
 	log := logf.FromContext(ctx)
-	pod, err := r.getForPod(ctx, job)
+	// pod, err := r.getForPod(ctx, job)
 
-	if err != nil && errors.IsNotFound(err){
-		job.Status.JobStatus = aerjobv2.Pending
-		job.Status.PodName = "" // Clear pod name
-		if err := r.Status().Update(ctx, job); err != nil {
-			return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
-		}
-		log.Info("Transitioning back to Pending")
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err != nil {
-		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
-	}
+	// if err != nil && errors.IsNotFound(err){
+	// 	job.Status.JobStatus = aerjobv2.Pending
+	// 	job.Status.PodName = "" // Clear pod name
+	// 	if err := r.Status().Update(ctx, job); err != nil {
+	// 		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
+	// 	}
+	// 	log.Info("Transitioning back to Pending")
+	// 	return ctrl.Result{Requeue: true}, nil
+	// }
+	// if err != nil {
+	// 	if errors.IsNotFound(err){
+	// 		log.Info("Pod already deleted, proceeding to TTL check")
+	// 	}else{
+	// 		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
+	// 	}
+	// }
 
 	if job.Status.JobStatus == aerjobv2.Completed || job.Status.JobStatus == aerjobv2.Failed {
 
 		log.Info("Job in terminal state, cleaning up the pods")
-		if err := r.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
-		}
 
+		pod, err := r.getForPod(ctx, job)
+
+		if err == nil{
+			log.Info("Deleting pod","podName", pod.Name)
+			if err := r.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
+			return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
+			}
+
+		} else if errors.IsNotFound(err){
+			// pod already gone, nothing to do
+			log.Info("Pod Already deleted")
+		} else {
+			// other error
+			return ctrl.Result{RequeueAfter: DefaultRequeueDelay},err
+		}
+		
 		// Deleting the CR if it exceeds TTL
 		if job.Spec.TTLSecondsAfterFinished != nil && job.Status.CompletionTime != nil{
 
@@ -398,8 +415,9 @@ func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *ae
 		}
 	
 	}
-	// job is not in terminal state thus requeue
-	return ctrl.Result{Requeue: true}, nil	
+	// Not in terminal state (shouldn't happen)
+	log.Info("handleTerminalJob called but job not in terminal state", "status", job.Status.JobStatus)
+	return ctrl.Result{}, nil
 }
 
 
