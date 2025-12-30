@@ -128,6 +128,7 @@ type QuantumAerJobStatus struct {
 
 	// Retries tracks the number of retry attempts
 	// +optional
+	// +kubebuilder:default:=0
 	Retries int32 `json:"retries,omitempty"`
 	
 	// PodName is the name of the simulator pod
@@ -144,12 +145,13 @@ type QuantumAerJobStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
+// +kubebuilder:subresource:status 
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="Backend",type=string,JSONPath=`.spec.backendName`
 // +kubebuilder:printcolumn:name="Retries",type=integer,JSONPath=`.status.retries`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
+// Setting status of a subresource implies it could be accessed via quantumaerjob/status.
 // QuantumAerJob is the Schema for the quantumaerjobs API
 type QuantumAerJob struct {
 	metav1.TypeMeta `json:",inline"`
