@@ -48,6 +48,10 @@ type QuantumAerJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// kubebuilder markers to give necessary rbac premission to controller
+// give access to read & updaate quantumaerjobs resources.
+// give access to read & update pods/service accounts
+
 // +kubebuilder:rbac:groups=aerjob.nav.io,resources=quantumaerjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aerjob.nav.io,resources=quantumaerjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=aerjob.nav.io,resources=quantumaerjobs/finalizers,verbs=update
