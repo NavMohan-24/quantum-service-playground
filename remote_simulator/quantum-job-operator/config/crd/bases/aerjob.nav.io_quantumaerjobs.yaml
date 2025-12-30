@@ -30,7 +30,9 @@ spec:
     name: v2
     schema:
       openAPIV3Schema:
-        description: QuantumAerJob is the Schema for the quantumaerjobs API
+        description: |-
+          Setting status of a subresource implies it could be accessed via quantumaerjob/status.
+          QuantumAerJob is the Schema for the quantumaerjobs API
         properties:
           apiVersion:
             description: |-
@@ -203,6 +205,7 @@ spec:
                 description: Result is the base64-encoded execution result
                 type: string
               retries:
+                default: 0
                 description: Retries tracks the number of retry attempts
                 format: int32
                 type: integer
