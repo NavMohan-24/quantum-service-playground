@@ -3,16 +3,24 @@ FROM python:3.12-slim
 # files system organization in pod
 WORKDIR /app
 
-# Copy requirements file
+# copy requirements file
 COPY simulator_service/simulator_requirements.txt requirements.txt
 
 # install python packages.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy application code
-COPY simulator_service/simulator_service.py simulator_service.py
+COPY simulator_service/simulator_job.py simulator_job.py
 
-# PORT specifcation
-EXPOSE 5001
+# # make scripts executable
+# RUN chmod +x simulator_job.py
 
-CMD [ "python" , "simulator_service.py" ]
+# Run as non-root user
+# Create a new user named "Simulator" with UID 1000
+RUN useradd -m -u 1000 simulator
+# change ownership of every folders in app
+RUN chown -R simulator:simulator /app
+# change user to simulator (standard linux user without root access)
+USER simulator
+
+CMD [ "python" , "simulator_job.py" ]
