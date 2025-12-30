@@ -309,7 +309,7 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 			} else {
 				log.Info("Max retries exceeded, marking job as Failed")
 				job.Status.JobStatus = aerjobv2.Failed
-				job.Status.ErrorMessage = fmt.Sprintf("Job terminated due to consistend Pod failures")
+				job.Status.ErrorMessage = "Job terminated due to consistend Pod failures"
 				now := metav1.Now()
 				job.Status.CompletionTime = &now
 				if err := r.Status().Update(ctx,job); err != nil{
