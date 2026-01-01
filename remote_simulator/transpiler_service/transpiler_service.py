@@ -210,20 +210,17 @@ def transpile():
         circuits_b64 = data.get('circuits_qpy')
         shots = data.get("shots", 1024)
         backend_name = data.get("backend_name", "aer-simulator")
-
+        job_id = data.get("job_id", None)
+        resources = data.get('resources', None)
 
         if not circuits_b64:
             return jsonify({"Transpiler error": "No circuits provided"}), 400
         
-
-        # deserialize circuits
-        circuits_bytes = base64.b64decode(circuits_b64)
-        with io.BytesIO(circuits_bytes) as fptr:
-            circuits = qpy.load(fptr)
-
+        circuits = deserialize_circuits(circuits_b64)
+    
         
         if backend_name == "aer-simulator" or not service:
-            target = AerSimulator.target    
+            target = AerSimulator().target    
         else:
             target = service.backend(name=backend_name).target
         
@@ -236,25 +233,18 @@ def transpile():
             isa_circuit_bytes = fptr.getvalue()
             isa_circuit_b64 = base64.b64encode(isa_circuit_bytes).decode("utf-8")
 
-        response = requests.post(
-            f"{simulator_url}/execute",
-            json = {
-                "isa_circuits_b64" : isa_circuit_b64,
-                "shots" : shots,
-                "backend_name" : backend_name
-            },
-            timeout=300)
+        job_name = create_quantum_job(isa_circuit_b64,shots, backend_name, job_id, resources)
 
-        if response.status_code == 200:
-            print('simulation is complete ...')
-            return jsonify(response.json())
-        
-        else:
-            return jsonify({"Simulator error": f"Simulation failed: {response.text}"}), 500
-        
-    except Exception as e:
-        import traceback
         return jsonify({
+            "status" : "accepted",
+            "job_name" : job_name,
+            "job_id" : job_id,
+            "message": f"Job submitted. Poll /job/{job_name}/status for updates"
+             }), 202  # ✅ HTTP 202 Accepted
+
+    except Exception as e:
+        return jsonify({
+            "status": "failed",
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
