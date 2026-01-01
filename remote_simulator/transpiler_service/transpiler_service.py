@@ -265,10 +265,31 @@ def get_job_status_endpoint(job_name):
         return jsonify({"error": str(e)}), 404
 
 
-
+@app.route("/job/<job_name>/result", methods=["GET"])
+def get_job_result_endpoint(job_name):
+    """
+    Get the result of a completed QuantumJob
+    """
+    try:
+        status = get_quantum_job_status(job_name)
+        
+        if status.get("state") != "completed":
+            return jsonify({
+                "error": "Job not completed",
+                "status": status.get("state", "unknown")
+            }), 400
+        
+        result_b64 = status.get("result", "")
+        
+        return jsonify({
+            "status": "success",
+            "result": result_b64
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
 
 
 if __name__ == '__main__':
-    print("Starting Transpiler Service on port 5002...")
-    app.run(host='0.0.0.0', port=5002)    
+    print("🚀 Starting Transpiler Service on port 5002...")
+    app.run(host='0.0.0.0', port=5002)
 
