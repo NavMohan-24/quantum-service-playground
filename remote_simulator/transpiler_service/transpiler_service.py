@@ -99,7 +99,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
     # Generate the ID
 
     if not job_ID:
-        job_ID = uuid.uuid4().hex[:8]
+        job_ID = uuid.uuid4().hex[:16]
 
     job_name = f"qjob-{job_ID}"
 
