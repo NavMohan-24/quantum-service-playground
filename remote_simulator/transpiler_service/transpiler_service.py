@@ -143,20 +143,20 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
             body = quantum_job)
 
         print(f"✅ QuantumJob {job_name} created")
-        return job_name
+        return job_name, job_ID
     
     except Exception as e:
         print(f"❌ Failed to create QuantumJob: {e}")
         raise
 
 
-def get_quantum_job_status(job_name):
+def get_quantum_job_status(job_ID):
     """
     Return the status of a job
     
     :param job_name: Name of the job whose status needs to be checked.
     """    
-
+    job_name = f"qjob-{job_ID}"
     try:
         job = k8s_api.get_namespaced_custom_object(
             group = "aerjob.nav.io",
@@ -235,45 +235,46 @@ def transpile():
             isa_circuit_bytes = fptr.getvalue()
             isa_circuit_b64 = base64.b64encode(isa_circuit_bytes).decode("utf-8")
 
-        job_name = create_quantum_job(isa_circuit_b64,shots, backend_name, job_id, resources)
+        job_name, job_id = create_quantum_job(isa_circuit_b64,shots, backend_name, job_id, resources)
 
         return jsonify({
             "status" : "accepted",
-            "job_name" : job_name,
-            "job_id" : job_id,
-            "message": f"Job submitted. Poll /job/{job_name}/status for updates"
-             }), 202  # ✅ HTTP 202 Accepted
+            "job_id" :  job_id, 
+            "error" : "",
+            "message": f"Job submitted. Poll /job/{job_id}/status for updates"
+             }), 202  
 
     except Exception as e:
         return jsonify({
             "status": "failed",
+            "job_id": "",
             "error": str(e),
-            "traceback": traceback.format_exc()
+            "message": traceback.format_exc()
         }), 500
         
     
     
-@app.route("/job/<job_name>/status", methods=["GET"])
-def get_job_status_endpoint(job_name):
+@app.route("/job/<job_ID>/status", methods=["GET"])
+def get_job_status_endpoint(job_ID):
     """
     Get the status of a specific QuantumJob
     
     Useful for async polling if needed
     """
     try:
-        status = get_quantum_job_status(job_name)
+        status = get_quantum_job_status(job_ID)
         return jsonify(status)
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
 
-@app.route("/job/<job_name>/result", methods=["GET"])
-def get_job_result_endpoint(job_name):
+@app.route("/job/<job_ID>/result", methods=["GET"])
+def get_job_result_endpoint(job_ID):
     """
     Get the result of a completed QuantumJob
     """
     try:
-        status = get_quantum_job_status(job_name)
+        status = get_quantum_job_status(job_ID)
         
         if status.get("state") != "completed":
             return jsonify({
