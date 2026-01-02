@@ -58,7 +58,7 @@ type QuantumAerJobSpec struct {
 	// Timeout for the simulation job in seconds
 	// +optional
 	// +kubebuilder:default:=600
-	Timeout int32 `json:"timeout,omitempty"`
+	TimeOut int32 `json:"timeOut,omitempty"`
 	
 	// TTLSecondsAfterFinished limits the lifetime of a Job that has finished
 	// execution (either Completed or Failed).
