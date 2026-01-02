@@ -25,7 +25,6 @@ def load_kube_config():
 
 # Initialize service and cache backends at startup
 service = None
-backend_cache = {}
 
 def init_ibm_service():
     """
