@@ -80,8 +80,27 @@ class RemoteAerJob(Job):
         return self._result_cache
     
     def status(self):
-        from qiskit.providers import JobStatus
-        return JobStatus.DONE
+        """Get current job status"""
+        try:
+            response = requests.get(
+                f"{self._transpiler_url}/job/{self.job_id}/status",  # ✅
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                state = response.json().get('state', '')
+                
+                state_map = {
+                    'pending': JobStatus.QUEUED,
+                    'in progress': JobStatus.RUNNING,
+                    'completed': JobStatus.DONE,
+                    'failed': JobStatus.ERROR
+                }
+                return state_map.get(state, JobStatus.QUEUED)
+        except:
+            pass
+        
+        return JobStatus.QUEUED
     
     def submit(self):
         pass
