@@ -29,6 +29,8 @@ service = None
 
 def init_ibm_service():
     global service
+    if service is not None:  
+        return
     try:
         if IBM_API_KEY:
             print("Initializing IBM Quantum service...")
