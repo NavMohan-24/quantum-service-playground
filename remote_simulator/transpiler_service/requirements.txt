@@ -2,3 +2,4 @@ qiskit==2.1
 qiskit_ibm_runtime==0.43
 flask==3.0
 qiskit_aer == 0.17 
+kubernetes == 34.1.0
