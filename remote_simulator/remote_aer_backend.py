@@ -120,6 +120,8 @@ class RemoteAerBackend(BackendV2):
             'TRANSPILER_SERVICE_URL', 
             'http://transpiler-service:5002'  
         )
+        self.timeout = int(os.getenv('JOB_TIMEOUT', '600'))
+
         
         print(f"Remote AerBackend configured with URL: {self.transpiler_url}")
 
@@ -146,42 +148,33 @@ class RemoteAerBackend(BackendV2):
             qpy.dump(circuits, fptr)
             circuit_bytes = fptr.getvalue()
             circuits_b64 = base64.b64encode(circuit_bytes).decode('utf-8')
-
+        
         # Send to transpiler
         try:
+            job_id = uuid.uuid4().hex[:16]
             response = requests.post(
                 f"{self.transpiler_url}/transpile",
-                
                 json={
                     'circuits_qpy': circuits_b64,
                     'shots' : shots,
                     'backend_name' : self.name,
+                    'job_id' : job_id
                    },
                 
-                timeout = 300                     
+                timeout = 30                   
             )
 
-            if response.status_code == 200:
-
-                result_data = response.json()
-                result_b64 = result_data['result']
+            if response.status_code == 202:
                 
-                # Decode base64
-                result_bytes = base64.b64decode(result_b64)
-                result_json = result_bytes.decode("utf-8")
-
-                # Deserialize using RuntimeDecoder
-                result = json.loads(result_json, cls=RuntimeDecoder)
-
-                print("Results received from remote simulator")
-                job_id = str(uuid.uuid4())
-                return RemoteAerJob(self, job_id, result)
+                result_data = response.json()
+                returned_job_id = result_data['job_id']
+                return RemoteAerJob(self, backend=self.name, job_id=ret)
             else:
                 raise Exception(f"Simulator error: {response.text}")
             
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to reach transpiler: {str(e)}")
-        
+              
     @property
     def target(self):
         return self._target
