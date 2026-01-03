@@ -74,17 +74,17 @@ func (r *QuantumAerJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	log.Info("Reconciling Job", "name", job.Name, "phase", job.Status.JobStatus)
 	
 	// handle timeout of job
-	if job.Status.StartTime != nil && job.Spec.Timeout > 0 {
+	if job.Status.StartTime != nil && job.Spec.TimeOut > 0 {
 
 		elapsed := time.Since(job.Status.StartTime.Time)
-		timeout := time.Duration(job.Spec.Timeout)*time.Second
+		timeout := time.Duration(job.Spec.TimeOut)*time.Second
 
 		if elapsed > timeout && job.Status.JobStatus != aerjobv2.Completed && 
 			job.Status.JobStatus != aerjobv2.Failed {
 				log.Info("Job timeout exceeded", "elapsed", elapsed, "timeout", timeout)
 				// Mark as failed
 				job.Status.JobStatus = aerjobv2.Failed
-				job.Status.ErrorMessage = fmt.Sprintf("Job exceeded timeout of %d seconds", job.Spec.Timeout)
+				job.Status.ErrorMessage = fmt.Sprintf("Job exceeded timeout of %d seconds", job.Spec.TimeOut)
 				now := metav1.Now()
 				job.Status.CompletionTime = &now
 
