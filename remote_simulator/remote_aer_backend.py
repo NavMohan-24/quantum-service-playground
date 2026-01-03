@@ -165,7 +165,7 @@ class RemoteAerBackend(BackendV2):
                 
                 result_data = response.json()
                 returned_job_id = result_data['job_id']
-                return RemoteAerJob(self, backend=self.name, job_id=returned_job_id)
+                return RemoteAerJob(backend=self, job_id=returned_job_id)
             else:
                 raise Exception(f"Simulator error: {response.text}")
             
