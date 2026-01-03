@@ -111,7 +111,7 @@ spec:
               simulatorImage:
                 description: SimulatorImage contains the image for simulator
                 type: string
-              timeout:
+              timeOut:
                 default: 600
                 description: Timeout for the simulation job in seconds
                 format: int32
