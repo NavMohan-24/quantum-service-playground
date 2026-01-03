@@ -1,0 +1,44 @@
+---
+# ServiceAccount for Transpiler Service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: transpiler-sa
+  namespace: default
+
+---
+# Role: Allows transpiler to create and manage QuantumJobCRS
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: transpiler-role
+  namespace: default
+rules:
+  # Allow creating QuantumAerJob CRs
+  - apiGroups: ["aerjob.nav.io"]
+    resources: ["quantumaerjobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+
+  # Allow reading QuantumAerJob status
+  - apiGroups: ["aerjob.nav.io"] 
+    resources: ["quantumaerjobs/status"]
+    verbs: ["get", "watch"]
+---
+
+# Rolebinding: Links the transpiler ServiceAccount to Role.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: transpiler-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: transpiler-sa
+    namespace: default
+
+roleRef:
+  kind: Role
+  name: transpiler-role
+  apiGroup: rbac.authorization.k8s.io
+  # default namespace
+  
