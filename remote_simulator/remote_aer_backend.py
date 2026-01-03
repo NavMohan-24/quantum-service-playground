@@ -18,9 +18,8 @@ from qiskit_ibm_runtime.utils import RuntimeDecoder
 class RemoteAerJob(Job):
 
     def __init__(self, backend, job_id):
-        super().__init__(backend, job_id)
-        self.job_id = job_id,
-        self._result_cache = None,
+        super().__init__(backend=backend, job_id=job_id)
+        self._result_cache = None
         self._transpiler_url = os.getenv('TRANSPILER_SERVICE_URL', 'http://transpiler-service:5002')
         self._timeout = int(os.getenv('JOB_TIMEOUT', '600'))
         
@@ -30,13 +29,11 @@ class RemoteAerJob(Job):
         """Poll for job completion"""
         start = time.time()
 
-        
-        
         while time.time() - start < self._timeout:
             try:
                 # Check status
                 response = requests.get(
-                    f"{self._transpiler_url}/job/{self.job_id}/status",
+                    f"{self._transpiler_url}/job/{self.job_id()}/status",
                     timeout=10
                 )
                 
@@ -47,7 +44,7 @@ class RemoteAerJob(Job):
                     if state == 'completed':
                         # Get result
                         result_resp = requests.get(
-                            f"{self._transpiler_url}/job/{self.job_id}/result",
+                            f"{self._transpiler_url}/job/{self.job_id()}/result",
                             timeout=10
                         )
                         result_b64 = result_resp.json()['result']
@@ -64,7 +61,7 @@ class RemoteAerJob(Job):
                         error = status.get('errorMessage', 'Unknown error')
                         raise Exception(f"Quantum job failed: {error}")
                     
-                    print(f"Job {self.job_id} status: {state}")
+                    print(f"Job {self.job_id()} status: {state}")
                 
                 time.sleep(interval)
                 
@@ -72,7 +69,7 @@ class RemoteAerJob(Job):
                 print(f"⚠️ Polling error: {e}, retrying...")
                 time.sleep(interval)
         
-        raise TimeoutError(f"Job {self.job_id} did not complete within {self._timeout}s")
+        raise TimeoutError(f"Job {self.job_id()} did not complete within {self._timeout}s")
    
     def result(self):
         if self._result_cache is None:
