@@ -6,9 +6,10 @@ metadata:
     app: transpiler
 
 spec:
+  serviceAccountName: transpiler-sa  
   containers:
   - name: compiler
-    image: transpiler:v2
+    image: transpiler:v3
     imagePullPolicy: Never
     ports:
     - containerPort: 5002
