@@ -263,9 +263,19 @@ def get_job_status_endpoint(job_ID):
     """
     try:
         status = get_quantum_job_status(job_ID)
-        return jsonify(status)
+
+        # function returns empty, JOB doesnot exists
+        if not status:
+            return jsonify({
+                "error": f"Job {job_ID} is not Found",
+                "details" : ""
+            }), 404
+        
+        # request successful
+        return jsonify(status), 200
+    
     except Exception as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": "Internal Server Error", "details" : str(e)}), 500
 
 
 @app.route("/job/<job_ID>/result", methods=["GET"])
