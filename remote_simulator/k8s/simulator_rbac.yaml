@@ -1,0 +1,41 @@
+# ServiceAccount for simulator pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: quantum-simulator-sa
+  namespace: default # <- change here
+---
+
+# Role that defines the permissions to access QuantumJob CR
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: quantum-simulator-role
+  namespace: default # <- change here
+rules:
+  # Allow reading QuantumAerJob CRDs
+  - apiGroups: ["aerjob.nav.io"]
+    resources: ["quantumaerjobs"]
+    verbs: ["get", "list", "watch"]
+  
+  # Allow updating QuantumAerJob status
+  - apiGroups: ["aerjob.nav.io"]
+    resources: ["quantumaerjobs/status"]
+    verbs: ["get", "update", "patch"]
+---
+
+# RoleBinding: Links simulator ServiceAccount to Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: quantum-simulator-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: quantum-simulator-sa
+    namespace: default
+    # api group will be implicitly specified as corev1
+roleRef:
+  kind: Role
+  name: quantum-simulator-role
+  apiGroup: rbac.authorization.k8s.io
