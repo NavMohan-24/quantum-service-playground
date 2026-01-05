@@ -1,3 +1,5 @@
+# Setup
+
 ***Create a KIND cluster***
 
 ```shell
@@ -36,7 +38,7 @@ kind load docker-image qiskit-worker:v3 --name qc-cluster
 # transpiler pod + service
 kind load docker-image transpiler:v3 --name qc-cluster
 
-# worker pod 
+# simulator pod
 kind load docker-image aer-simulator:v3 --name qc-cluster
 ```
 
@@ -97,7 +99,8 @@ architecture
    └─────────────────────────────────────────────────┘   
 
 ```                                                          -->
-                                                         
+
+***Job Flow***                                                         
 ```
 ┌──────────┐   HTTP    ┌─────────────┐   creates   ┌──────────────┐
 │  Worker  ├──────────►│ Transpiler  ├────────────►│QuantumAerJob │
