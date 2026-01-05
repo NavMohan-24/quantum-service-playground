@@ -102,26 +102,33 @@ architecture
 
 ***Job Flow***                                                         
 ```
-┌──────────┐   HTTP    ┌─────────────┐   creates   ┌──────────────┐
-│  Worker  ├──────────►│ Transpiler  ├────────────►│QuantumAerJob │
-│   Pod    │           │   Service   │   (via API) │      CR      │
-└──────────┘           └─────────────┘             └──────┬───────┘
-      │                                                   │
-      │                                               watches
-      │                                                   │
-      │                                            ┌──────▼-──────┐
-      │                                            │   Operator   │
-      │                                            │  (reconcile) │
-      │                                            └───────┬──────┘
-      │                                                    │creates
-      │                                                    │
-      │                  ┌─────────────────────────────────▼────┐
-      │                  │      simulator-pod                   │
-      │                  │      - runs simulation               │
-      │                  │      - updates CR status             │
-      │                  └──────────────────────────────────────┘
-      │                                    │
-      └────polls for result────────────────┘
-           (via transpiler service)
+                                                                                             
+                                                     ┌───────────────────┐                   
+                                                     │                   │                   
+  ┌──────────┐   HTTP    ┌─────────────┐ creates CR  │ QuantumAerJob CR  │                   
+  │  Worker  ├──────────►│ Transpiler  ├────────────►│   - circuits      │                   
+  │   Pod    │           │   Service   │             │   - result        │                   
+  └──────────┘           └─────────────┘   via       │                   │                   
+        │                               service-accnt└──▲───┬──────────▲─┘                   
+        │                                               │   │          │                     
+        │               Polls for result                │   │          │                     
+        └───────────────────────────────────────────────┘   │          │                     
+                     (via transpiler service)               │          │                     
+                                                            │          │   updates results    
+                                                         watches       │ (via service-accnt)  
+                                                            │          │                     
+                                                     ┌──────▼-──────┐  │                     
+                                                     │   Operator   │  │                     
+                                                     │  (reconcile) │  │                     
+                                                     └──────┬───────┘  │                     
+                                                            │          │                     
+                                                         creates       │                     
+                                                            │          │                     
+                                                   ┌────────▼-─────────┴───────┐             
+                                                   │  simulator-pod            │             
+                                                   │  - runs simulation        │             
+                                                   │  - updates CR status      │             
+                                                   └───────────────────────────┘             
+                                                                                                  
 
 ```
