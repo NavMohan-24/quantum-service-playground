@@ -32,10 +32,6 @@ spec:
           name: ibm-quantum-secret
           key:  instance
           optional: true
-  
-
-    - name: SIMULATOR_SERVICE_URL
-      value: "http://aer-simulator-service:5001"
 
     resources:
       requests: # minimum required resources
