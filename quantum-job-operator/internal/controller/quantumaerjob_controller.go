@@ -163,6 +163,25 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
 					{Name: "JOB_ID", Value: job.Spec.JobID},
 					{Name: "QUANTUM_JOB_NAME", Value: job.Name},
 					{Name: "QUANTUM_JOB_NAMESPACE", Value: job.Namespace},
+					{Name: "IBM_API_KEY", ValueFrom: &v1.EnvVarSource{
+						SecretKeyRef : &v1.SecretKeySelector{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: "ibm-quantum-secret",
+								},
+							Key: "api-key",
+							},
+						},
+					},
+
+					{Name: "IBM_INSTANCE", ValueFrom: &v1.EnvVarSource{
+						SecretKeyRef: &v1.SecretKeySelector{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name : "ibm-quantum-secret",
+								},
+							Key: "instance",
+							},
+						},
+					},
 					},
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
