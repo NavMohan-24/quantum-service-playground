@@ -37,10 +37,10 @@ type QuantumAerJobSpec struct {
 	// +kubebuilder:validation:Minimum:=1
 	Shots int32 `json:"shots,omitempty"`
 	
-	// Circuits is a string representation of the quantum circuits to execute.
-	// This should be a base64-encoded QPY serialized circuit.
-	// +kubebuilder:validation:Required
-	Circuits string `json:"circuits"`
+	// // Circuits is a string representation of the quantum circuits to execute.
+	// // This should be a base64-encoded QPY serialized circuit.
+	// // +kubebuilder:validation:Required
+	// Circuits string `json:"circuits"`
 
 	// SimulatorImage contains the image for simulator
 	// +kubebuilder:validation:Required
@@ -118,9 +118,9 @@ type QuantumAerJobStatus struct {
 	// +optional
 	JobStatus JobState `json:"state,omitempty"`
 
-	// Result is the base64-encoded execution result
-	// +optional
-	Result string `json:"result,omitempty"`
+	// // Result is the base64-encoded execution result
+	// // +optional
+	// Result string `json:"result,omitempty"`
 
 	// ErrorMessage contains error details if the job failed
 	// +optional
