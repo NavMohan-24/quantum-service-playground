@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	aerjobv2 "quantum/Aerjob/api/v2"
+	aerjobv3 "quantum/Aerjob/api/v3"
 	"quantum/Aerjob/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -49,6 +50,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(aerjobv2.AddToScheme(scheme))
+	utilruntime.Must(aerjobv3.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

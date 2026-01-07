@@ -1,0 +1,9 @@
+apiVersion: aerjob.nav.io/v3
+kind: QuantumAerJob
+metadata:
+  labels:
+    app.kubernetes.io/name: quantum-job-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: quantumaerjob-sample
+spec:
+  # TODO(user): Add fields here
