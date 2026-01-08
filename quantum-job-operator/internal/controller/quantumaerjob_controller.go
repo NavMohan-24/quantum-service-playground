@@ -138,6 +138,41 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
         return err
     }
 
+	redisSvc := &v1.Service{}
+	if err:= r.Get(ctx, types.NamespacedName{Name: "redis-service", Namespace: job.Namespace}, redisSvc); err != nil{
+		log.Error(err, "Redis service couldn't be found, pod couldn't be created")
+        return err
+	}
+
+	envVar := []v1.EnvVar{
+		{Name: "JOB_ID" , Value: job.Spec.JobID},
+		{Name: "BACKEND_NAME", Value: job.Spec.BackendName},
+		{Name: "SHOTS", Value: fmt.Sprintf("%d",job.Spec.Shots)},
+		{Name: "SIMULATOR_IMAGE", Value: job.Spec.SimulatorImage},
+		{Name: "QUANTUM_JOB_NAME", Value: job.Name},
+		{Name: "QUANTUM_JOB_NAMESPACE",Value: job.Namespace},
+		{Name: "IBM_API_KEY", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "ibm-quantum-secret",
+					}, 
+					Key: "api-key",
+				},
+			},
+		},
+		{Name: "IBM_INSTANCE", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "ibm-quantum-secret",
+					}, 
+					Key: "instance",
+				},
+			},
+		},
+		{Name: "REDIS_HOST", Value: redisSvc.Name},
+		{Name: "REDIS_PORT", Value: fmt.Sprintf("%d",redisSvc.Spec.Ports[0].Port)},
+	}
+
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,33 +191,7 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
 				{
 				Name : "aer-simulator",
 				Image : job.Spec.SimulatorImage,
-				Env : []v1.EnvVar{
-					{Name: "CIRCUITS", Value: job.Spec.Circuits},
-					{Name: "SHOTS", Value: fmt.Sprintf("%d", job.Spec.Shots)},
-					{Name: "BACKEND_NAME", Value: job.Spec.BackendName},
-					{Name: "JOB_ID", Value: job.Spec.JobID},
-					{Name: "QUANTUM_JOB_NAME", Value: job.Name},
-					{Name: "QUANTUM_JOB_NAMESPACE", Value: job.Namespace},
-					{Name: "IBM_API_KEY", ValueFrom: &v1.EnvVarSource{
-						SecretKeyRef : &v1.SecretKeySelector{
-							LocalObjectReference: v1.LocalObjectReference{
-								Name: "ibm-quantum-secret",
-								},
-							Key: "api-key",
-							},
-						},
-					},
-
-					{Name: "IBM_INSTANCE", ValueFrom: &v1.EnvVarSource{
-						SecretKeyRef: &v1.SecretKeySelector{
-							LocalObjectReference: v1.LocalObjectReference{
-								Name : "ibm-quantum-secret",
-								},
-							Key: "instance",
-							},
-						},
-					},
-					},
+				Env : envVar,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("1"),
