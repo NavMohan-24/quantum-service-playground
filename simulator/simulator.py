@@ -186,24 +186,33 @@ def main():
 
     try:
         load_kube_config()
-        
+
+        redis_client = init_redis_client()
         # Get environment variables
         config_vars = get_env_vars()
         print(f"📋 Job ID: {config_vars['job_id']}")
         print(f"📋 Backend: {config_vars['backend_name']}")
         print(f"📋 Shots: {config_vars['shots']}")
-        print(f"📋 Target CR: {config_vars['quantum_job_namespace']}/{config_vars['quantum_job_name']}")
+        # print(f"📋 Target CR: {config_vars['quantum_job_namespace']}/{config_vars['quantum_job_name']}")
+
+        circuit_key = f"t_circuit:{config_vars['job_id']}"
+        print(f"Fetching Circuit from Redis: {circuit_key}")
 
         # Validate
-        if not config_vars["circuits"]:
-            raise ValueError("CIRCUITS environment variable is required.")
+        circuits_b64 = redis_client.get(circuit_key)
+        if not circuits_b64:
+            raise ValueError(f"Circuit not found in databse for key: {circuit_key}")
+
+        # if not config_vars["circuits"]:
+        #     raise ValueError("CIRCUITS environment variable is required.")
         if not config_vars["quantum_job_name"]:
             raise ValueError("QUANTUM_JOB_NAME environment variable is required.")
         if not config_vars["job_id"]:
             raise ValueError("Job_ID environment variable is required.")
+        
 
         # Deserialize circuits
-        circuits = deserialize_circuits(config_vars['circuits'])
+        circuits = deserialize_circuits(circuits_b64)
 
         # Run simulation
         results = run_simulation(
