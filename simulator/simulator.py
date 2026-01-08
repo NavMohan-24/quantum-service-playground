@@ -5,6 +5,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 from qiskit_ibm_runtime.utils import RuntimeEncoder
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
+import redis
 
 def load_kube_config():
     """
@@ -51,6 +52,27 @@ def init_ibm_service():
         print(f"❌ Failed to init IBM service: {e}")
         service = None
 
+def init_redis_client():
+    """
+    initialize redis client
+    """
+
+    redis_host = os.getenv("REDIS_HOST", 'redis-service')
+    redis_port = os.getenv("REDIS_PORT", '6379')
+
+    try:
+        r = redis.Redis(
+            host = redis_host,
+            port = redis_port,
+            decode_response = False
+        )
+        r.ping()
+        print(f"✅ Connected to Redis at {redis_host}:{redis_port}")
+        return r
+
+    except Exception as e:
+        print(f"❌ failed to intialize IBM service")
+        raise
 
 def get_env_vars():
     """
