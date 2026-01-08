@@ -79,7 +79,6 @@ def get_env_vars():
     Extract env variables to run the job
     """
     return {
-        'circuits': os.getenv('CIRCUITS'),
         'shots': int(os.getenv('SHOTS', '1024')),
         'backend_name': os.getenv('BACKEND_NAME', 'aer-simulator'),
         'job_id': os.getenv('JOB_ID', 'unknown'),
@@ -159,7 +158,6 @@ def update_quantum_job_status(namespace, name, result_b64, success = True, error
 
         status_body = {
             "status": {
-                "result" : result_b64 if success else "",
                 "errorMessage": error_message if not success else "",
             } 
         }
