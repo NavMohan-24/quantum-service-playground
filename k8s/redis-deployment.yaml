@@ -4,6 +4,8 @@ metadata:
   name: redis-config
   namespace: default
 data:
+  host : "redis-service"
+  port : "6379"
   # stores the configuration in redis.conf file
   redis.conf: |
     maxmemory 256mb
