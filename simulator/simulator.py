@@ -5,7 +5,8 @@ from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 from qiskit_ibm_runtime.utils import RuntimeEncoder
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
-import redis
+from utils.redisDB import RedisDB
+
 
 def load_kube_config():
     """
@@ -52,27 +53,7 @@ def init_ibm_service():
         print(f"❌ Failed to init IBM service: {e}")
         service = None
 
-def init_redis_client():
-    """
-    initialize redis client
-    """
 
-    redis_host = os.getenv("REDIS_HOST", 'redis-service')
-    redis_port = os.getenv("REDIS_PORT", '6379')
-
-    try:
-        r = redis.Redis(
-            host = redis_host,
-            port = redis_port,
-            decode_response = False
-        )
-        r.ping()
-        print(f"✅ Connected to Redis at {redis_host}:{redis_port}")
-        return r
-
-    except Exception as e:
-        print(f"❌ failed to intialize IBM service")
-        raise
 
 def get_env_vars():
     """
@@ -83,7 +64,9 @@ def get_env_vars():
         'backend_name': os.getenv('BACKEND_NAME', 'aer-simulator'),
         'job_id': os.getenv('JOB_ID', 'unknown'),
         'quantum_job_name': os.getenv('QUANTUM_JOB_NAME'),
-        'quantum_job_namespace': os.getenv('QUANTUM_JOB_NAMESPACE', 'default')
+        'quantum_job_namespace': os.getenv('QUANTUM_JOB_NAMESPACE', 'default'),
+        'redis_host' : os.getenv("REDIS_HOST", "redis-service"),
+        'redis_port' : os.getenv("REDIS_PORT", "6379")
     }
 
 def deserialize_circuits(circuits_b64):
@@ -142,7 +125,7 @@ def run_simulation(circuits, shots, backend_name):
     print("✅ Simulation completed successfully")
     return results
 
-def update_quantum_job_status(namespace, name, result_b64, success = True, error_message = None):
+def update_quantum_job_status(namespace, name, success = True, error_message = None):
     """
     Update Quantum Job Status.
         - updates results, JobStatus and error message (if any) 
