@@ -18,11 +18,11 @@ class RedisDB:
 
 
         self.redis_host = redis_host
-        self.redis_port = redis_port
+        self.redis_port = int(redis_port)
         try:
             self.client = redis.Redis(
-                host = redis_host,
-                port = redis_port,
+                host = self.redis_host,
+                port = self.redis_port,
                 decode_response = False
             )
             self.client.ping()
