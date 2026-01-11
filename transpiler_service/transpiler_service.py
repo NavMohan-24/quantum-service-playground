@@ -13,12 +13,16 @@ from qiskit_ibm_runtime.utils import RuntimeEncoder, RuntimeDecoder
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
+from utils.redisDB import RedisDB
 
 
 app = Flask(__name__)
 
 IBM_API_KEY = os.getenv('IBM_API_KEY')
 IBM_INSTANCE = os.getenv('IBM_INSTANCE')
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+
 SIMULATOR_IMAGE = os.getenv('SIMULATOR_IMAGE', 'aer-simulator:v3')
 K8S_NAMESPACE = os.getenv('K8S_NAMESPACE', 'default')
 JOB_TIMEOUT = int(os.getenv('JOB_TIMEOUT', '600'))
@@ -103,10 +107,13 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
 
     job_name = f"qjob-{job_ID}"
 
+    redis_client = RedisDB(redis_host=REDIS_HOST, redis_port=REDIS_PORT)
+    redis_client.create_job_data(job_id=job_ID,circuit=circuits_b64)
+    print(f"📝 Stored circuit in DB: {job_ID}")
+
     quantum_job_spec = {
         "backendName": backend_name,
         "shots" : shots,
-        "circuits" : circuits_b64,
         "simulatorImage": SIMULATOR_IMAGE,
         "jobID" : job_ID,
         "maxRetries": MAX_RETRIES,
@@ -235,7 +242,7 @@ def transpile():
             isa_circuit_bytes = fptr.getvalue()
             isa_circuit_b64 = base64.b64encode(isa_circuit_bytes).decode("utf-8")
 
-        job_name, job_id = create_quantum_job(isa_circuit_b64,shots, backend_name, job_id, resources)
+        job_name, job_id = create_quantum_job(isa_circuit_b64, shots, backend_name, job_id, resources)
 
         return jsonify({
             "status" : "accepted",
