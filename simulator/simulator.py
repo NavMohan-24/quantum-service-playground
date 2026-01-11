@@ -61,12 +61,12 @@ def get_env_vars():
     """
     return {
         'shots': int(os.getenv('SHOTS', '1024')),
-        'backend_name': os.getenv('BACKEND_NAME', 'aer-simulator'),
-        'job_id': os.getenv('JOB_ID', 'unknown'),
+        'backend_name': os.getenv('BACKEND_NAME','aer-simulator'),
+        'job_id': os.getenv('JOB_ID'),
         'quantum_job_name': os.getenv('QUANTUM_JOB_NAME'),
         'quantum_job_namespace': os.getenv('QUANTUM_JOB_NAMESPACE', 'default'),
-        'redis_host' : os.getenv("REDIS_HOST", "redis-service"),
-        'redis_port' : os.getenv("REDIS_PORT", "6379")
+        'redis_host' : os.getenv("REDIS_HOST"),
+        'redis_port' : os.getenv("REDIS_PORT")
     }
 
 def deserialize_circuits(circuits_b64):
@@ -169,31 +169,30 @@ def main():
 
     try:
         load_kube_config()
-
-        redis_client = init_redis_client()
         # Get environment variables
         config_vars = get_env_vars()
+
         print(f"📋 Job ID: {config_vars['job_id']}")
         print(f"📋 Backend: {config_vars['backend_name']}")
         print(f"📋 Shots: {config_vars['shots']}")
-        # print(f"📋 Target CR: {config_vars['quantum_job_namespace']}/{config_vars['quantum_job_name']}")
+        print(f"📋 Redis Host: {config_vars['redis_host']}")
+        print(f"📋 Redis Port: {config_vars['redis_port']}")
 
-        circuit_key = f"t_circuit:{config_vars['job_id']}"
-        print(f"Fetching Circuit from Redis: {circuit_key}")
+        # initialize the redis instance
+        redis_client = RedisDB(redis_host=config_vars["redis_host"],
+                               redis_port= config_vars["redis_port"])
 
         # Validate
-        circuits_b64 = redis_client.get(circuit_key)
+        job_data = redis_client.get_job_data(config_vars["job_id"])
+        circuits_b64 = job_data.get(circuits, None)
+        
         if not circuits_b64:
-            raise ValueError(f"Circuit not found in databse for key: {circuit_key}")
-
-        # if not config_vars["circuits"]:
-        #     raise ValueError("CIRCUITS environment variable is required.")
+            raise ValueError(f"Job data not found in databse for key: {config_vars["job_id"]}")
         if not config_vars["quantum_job_name"]:
             raise ValueError("QUANTUM_JOB_NAME environment variable is required.")
         if not config_vars["job_id"]:
             raise ValueError("Job_ID environment variable is required.")
         
-
         # Deserialize circuits
         circuits = deserialize_circuits(circuits_b64)
 
@@ -206,16 +205,18 @@ def main():
 
         # Serialize result
         result_b64 = serialize_results(results=results)
-        print(f"Result Size: {len(result_b64)} bytes (base64)")
 
         # Update QuantumJob CR
         update_quantum_job_status(
             config_vars['quantum_job_namespace'], 
-            config_vars['quantum_job_name'], 
-            result_b64, 
+            config_vars['quantum_job_name'],  
             success= True, 
             error_message=None
         )
+
+        # write back result to redis
+        job_data['results'] = result_b64
+        redis_client.update_job_data(job_data)
 
         print("="*60)
         print("✅ Job completed successfully")
