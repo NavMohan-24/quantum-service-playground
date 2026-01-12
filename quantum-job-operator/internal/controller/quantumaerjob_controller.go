@@ -114,7 +114,7 @@ func (r *QuantumAerJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, namespace, saName string) error {
+func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, namespace string, saName string) error {
     sa := &v1.ServiceAccount{}
     err := r.Get(ctx, types.NamespacedName{
         Name:      saName,
@@ -124,6 +124,21 @@ func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, na
     if errors.IsNotFound(err) {
         return fmt.Errorf("ServiceAccount %s not found in namespace %s", saName, namespace)
     }
+    return err
+}
+
+func (r *QuantumAerJobReconciler) validateConfigMap(ctx context.Context, namespace string, cmName string) error{
+
+	cm := &v1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name: cmName,
+		Namespace: namespace,
+	}, cm)
+
+	if errors.IsNotFound(err) {
+        return fmt.Errorf("ConfigMap %s not found in namespace %s", cmName, namespace)
+    }
+
     return err
 }
 
@@ -138,11 +153,11 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
         return err
     }
 
-	// redisSvc := &v1.Service{}
-	// if err:= r.Get(ctx, types.NamespacedName{Name: "redis-service", Namespace: job.Namespace}, redisSvc); err != nil{
-	// 	log.Error(err, "Redis service couldn't be found, pod couldn't be created")
-    //     return err
-	// }
+	//  Validate configMap
+	if err:= r.validateConfigMap(ctx,  job.Namespace, "redis-config"); err != nil{
+		log.Error(err, "Redis configmap is not found, pod couldn't be created")
+        return err
+	}
 
 	envVar := []v1.EnvVar{
 		{Name: "JOB_ID" , Value: job.Spec.JobID},
