@@ -116,7 +116,7 @@ type QuantumAerJobStatus struct {
 
 	// JobStatus is the current state of the Job
 	// +optional
-	JobStatus JobState `json:"state,omitempty"`
+	JobStatus JobState `json:"jobState,omitempty"`
 
 	// // Result is the base64-encoded execution result
 	// // +optional
