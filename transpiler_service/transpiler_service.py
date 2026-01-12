@@ -16,6 +16,8 @@ from kubernetes import client, config
 from utils.redisDB import RedisDB
 
 
+##=============INTIALISING REDIS=================
+
 app = Flask(__name__)
 
 IBM_API_KEY = os.getenv('IBM_API_KEY')
@@ -30,7 +32,6 @@ MAX_RETRIES = int(os.getenv('MAX_RETRIES', '3'))
 DEFAULT_TTL = int(os.getenv('DEFAULT_TTL_SECONDS', '300'))
 
 service = None
-
 def init_ibm_service():
     global service
     if service is not None:  
@@ -75,6 +76,8 @@ k8s_api = client.CustomObjectsApi()
 
 print("Initialized Transpiler Service : ✅ ")
 
+
+##========== HELPER FUNCTIONS =======================
 def deserialize_circuits(circuits_b64):
     """
     Deserialize the base64 encoded quantum circuit
@@ -200,7 +203,7 @@ def delete_quantum_job(job_name):
     except Exception as e:
         print(f"⚠️ failed to delete the job {job_name}: {e}")
     
-
+##=========== ENDPOINTS =============================
 @app.route("/health")
 def health():
     return jsonify({
@@ -308,7 +311,7 @@ def get_job_result_endpoint(job_ID):
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
-
+##==========MAIN FUNCTION=========================
 if __name__ == '__main__':
     print("🚀 Starting Transpiler Service on port 5002...")
     app.run(host='0.0.0.0', port=5002)
