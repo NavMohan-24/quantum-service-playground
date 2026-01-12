@@ -23,7 +23,7 @@ class RedisDB:
             self.client = redis.Redis(
                 host = self.redis_host,
                 port = self.redis_port,
-                decode_response = False
+                decode_responses = False
             )
             self.client.ping()
             print(f"✅ Connected to Redis at {redis_host}:{redis_port}")
@@ -109,7 +109,7 @@ class RedisDB:
 
         job_key = f"job:{job_id}"
 
-        job_data["updated_at"] = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
+        job_data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         try:
             self.client.setex(
