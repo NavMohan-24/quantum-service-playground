@@ -184,7 +184,7 @@ def main():
 
         # Validate
         job_data = redis_client.get_job_data(config_vars["job_id"])
-        circuits_b64 = job_data.get(circuits, None)
+        circuits_b64 = job_data.get("circuit", None)
         
         if not circuits_b64:
             raise ValueError(f"Job data not found in databse for key: {config_vars["job_id"]}")
@@ -216,7 +216,7 @@ def main():
 
         # write back result to redis
         job_data['results'] = result_b64
-        redis_client.update_job_data(job_data)
+        redis_client.update_job_data(config_vars["job_id"], job_data)
 
         print("="*60)
         print("✅ Job completed successfully")
@@ -237,7 +237,6 @@ def main():
                 update_quantum_job_status(
                     config_vars["quantum_job_namespace"], 
                     config_vars["quantum_job_name"],
-                    "",
                     success=False,
                     error_message= error_msg[:1000] # Limit error
                 )
