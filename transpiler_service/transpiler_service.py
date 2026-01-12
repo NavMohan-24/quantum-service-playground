@@ -72,8 +72,8 @@ def load_kube_config():
 # Initialize on startup
 init_ibm_service()
 load_kube_config()
+redis_client = RedisDB(redis_host=REDIS_HOST, redis_port=REDIS_PORT)
 k8s_api = client.CustomObjectsApi()
-
 print("Initialized Transpiler Service : ✅ ")
 
 
@@ -110,7 +110,6 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
 
     job_name = f"qjob-{job_ID}"
 
-    redis_client = RedisDB(redis_host=REDIS_HOST, redis_port=REDIS_PORT)
     redis_client.create_job_data(job_id=job_ID,circuit=circuits_b64)
     print(f"📝 Stored circuit in DB: {job_ID}")
 
@@ -296,17 +295,17 @@ def get_job_result_endpoint(job_ID):
     try:
         status = get_quantum_job_status(job_ID)
         
-        if status.get("state") != "completed":
+        if status.get("jobStatus") != "completed":
             return jsonify({
                 "error": "Job not completed",
                 "status": status.get("state", "unknown")
             }), 400
         
-        result_b64 = status.get("result", "")
-        
+        # result_b64 = status.get("result", "")
+        job_data = redis_client.get_job_data(job_id=job_ID)
         return jsonify({
             "status": "success",
-            "result": result_b64
+            "result": job_data.get("results",None)
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 404
