@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- aerjob_v3_quantumaerjob.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
