@@ -127,7 +127,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
         quantum_job_spec['resources'] = resources
     
     quantum_job = {
-        "apiVersion" : "aerjob.nav.io/v2",
+        "apiVersion" : "aerjob.nav.io/v3",
         "kind" : "QuantumAerJob",
         "metadata": {
             "name" : job_name,
@@ -146,7 +146,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
     try:
         k8s_api.create_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace=K8S_NAMESPACE,
             plural = "quantumaerjobs",
             body = quantum_job)
@@ -169,7 +169,7 @@ def get_quantum_job_status(job_ID):
     try:
         job = k8s_api.get_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace= K8S_NAMESPACE,
             plural= "quantumaerjobs",
             name = job_name
