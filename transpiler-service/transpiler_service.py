@@ -110,7 +110,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
 
     job_name = f"qjob-{job_ID}"
 
-    redis_client.create_job_data(job_id=job_ID,circuit=circuits_b64)
+    redis_client.create_job_data(job_id=job_ID, circuit=circuits_b64)
     print(f"📝 Stored circuit in DB: {job_ID}")
 
     quantum_job_spec = {
@@ -193,7 +193,7 @@ def delete_quantum_job(job_name):
     try:
         k8s_api.delete_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace= K8S_NAMESPACE,
             name = job_name,
             plural= "quantumaerjobs"
@@ -234,7 +234,7 @@ def transpile():
             target = AerSimulator().target    
         else:
             target = service.backend(name=backend_name).target
-        
+         
         pm = generate_preset_pass_manager(optimization_level=3, target=target)
         isa_circuits = pm.run(circuits)
 
