@@ -465,6 +465,7 @@ func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *ae
 func (r *QuantumAerJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&aerjob.QuantumAerJob{}).
+		Owns(&v1.Pod{}).
 		Named("quantumaerjob").
 		Complete(r)
 }
