@@ -153,11 +153,11 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
         return err
     }
 
-	//  Validate configMap
-	if err:= r.validateConfigMap(ctx,  job.Namespace, "redis-config"); err != nil{
-		log.Error(err, "Redis configmap is not found, pod couldn't be created")
-        return err
-	}
+	// //  Validate configMap
+	// if err:= r.validateConfigMap(ctx,  job.Namespace, "redis-config"); err != nil{
+	// 	log.Error(err, "Redis configmap is not found, pod couldn't be created")
+    //     return err
+	// }
 
 	envVar := []v1.EnvVar{
 		{Name: "JOB_ID" , Value: job.Spec.JobID},
