@@ -147,7 +147,7 @@ def update_quantum_job_status(namespace, name, success = True, error_message = N
 
         api.patch_namespaced_custom_object_status(
             group = "aerjob.nav.io",
-            version= "v2",
+            version= "v3",
             namespace= namespace,
             plural = "quantumaerjobs",
             name = name,
