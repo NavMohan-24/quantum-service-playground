@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v2 contains API Schema definitions for the aerjob v2 API group.
+// Package v3 contains API Schema definitions for the aerjob v3 API group.
 // +kubebuilder:object:generate=true
 // +groupName=aerjob.nav.io
-package v2
+package v3
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -26,7 +26,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "aerjob.nav.io", Version: "v2"}
+	GroupVersion = schema.GroupVersion{Group: "aerjob.nav.io", Version: "v3"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

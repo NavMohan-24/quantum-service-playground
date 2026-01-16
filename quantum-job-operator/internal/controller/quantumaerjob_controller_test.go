@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	aerjobv2 "quantum/Aerjob/api/v2"
+	aerjobv3 "quantum/Aerjob/api/v3"
 )
 
 var _ = Describe("QuantumAerJob Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("QuantumAerJob Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		quantumaerjob := &aerjobv2.QuantumAerJob{}
+		quantumaerjob := &aerjobv3.QuantumAerJob{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind QuantumAerJob")
 			err := k8sClient.Get(ctx, typeNamespacedName, quantumaerjob)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &aerjobv2.QuantumAerJob{
+				resource := &aerjobv3.QuantumAerJob{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("QuantumAerJob Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &aerjobv2.QuantumAerJob{}
+			resource := &aerjobv3.QuantumAerJob{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

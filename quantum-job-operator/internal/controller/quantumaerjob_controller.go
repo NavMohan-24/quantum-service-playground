@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	aerjobv2 "quantum/Aerjob/api/v2"
+	aerjob "quantum/Aerjob/api/v3"
 )
 
 // Requeue delay constants for reconciliation backoff
@@ -63,7 +63,7 @@ type QuantumAerJobReconciler struct {
 func (r *QuantumAerJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	job := &aerjobv2.QuantumAerJob{}
+	job := &aerjob.QuantumAerJob{}
 
 	// Fetch job using Name.
 	if err := r.Get(ctx,req.NamespacedName,job); err != nil{
@@ -79,11 +79,11 @@ func (r *QuantumAerJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		elapsed := time.Since(job.Status.StartTime.Time)
 		timeout := time.Duration(job.Spec.TimeOut)*time.Second
 
-		if elapsed > timeout && job.Status.JobStatus != aerjobv2.Completed && 
-			job.Status.JobStatus != aerjobv2.Failed {
+		if elapsed > timeout && job.Status.JobStatus != aerjob.Completed && 
+			job.Status.JobStatus != aerjob.Failed {
 				log.Info("Job timeout exceeded", "elapsed", elapsed, "timeout", timeout)
 				// Mark as failed
-				job.Status.JobStatus = aerjobv2.Failed
+				job.Status.JobStatus = aerjob.Failed
 				job.Status.ErrorMessage = fmt.Sprintf("Job exceeded timeout of %d seconds", job.Spec.TimeOut)
 				now := metav1.Now()
 				job.Status.CompletionTime = &now
@@ -101,20 +101,20 @@ func (r *QuantumAerJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		case "":
 			return r.handleNewJob(ctx, job)
 		
-		case aerjobv2.Pending:
+		case aerjob.Pending:
 			return r.handlePendingJob(ctx,job)
 		
-		case aerjobv2.Progress:
+		case aerjob.Progress:
 			return r.handleRunningJob(ctx, job)
 		
-		case aerjobv2.Completed, aerjobv2.Failed:
+		case aerjob.Completed, aerjob.Failed:
 			return r.handleTerminalJob(ctx, job)
 			
 	}
 	return ctrl.Result{}, nil
 }
 
-func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, namespace, saName string) error {
+func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, namespace string, saName string) error {
     sa := &v1.ServiceAccount{}
     err := r.Get(ctx, types.NamespacedName{
         Name:      saName,
@@ -127,7 +127,22 @@ func (r *QuantumAerJobReconciler) validateServiceAccount(ctx context.Context, na
     return err
 }
 
-func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *aerjobv2.QuantumAerJob) (error){
+func (r *QuantumAerJobReconciler) validateConfigMap(ctx context.Context, namespace string, cmName string) error{
+
+	cm := &v1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name: cmName,
+		Namespace: namespace,
+	}, cm)
+
+	if errors.IsNotFound(err) {
+        return fmt.Errorf("ConfigMap %s not found in namespace %s", cmName, namespace)
+    }
+
+    return err
+}
+
+func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *aerjob.QuantumAerJob) (error){
 	
 	log := logf.FromContext(ctx)
 	podName := fmt.Sprintf("%s-sim-%d", job.Name, job.Status.Retries)
@@ -137,6 +152,57 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
         log.Error(err, "ServiceAccount validation failed, pod couldn't be created")
         return err
     }
+
+	// //  Validate configMap
+	// if err:= r.validateConfigMap(ctx,  job.Namespace, "redis-config"); err != nil{
+	// 	log.Error(err, "Redis configmap is not found, pod couldn't be created")
+    //     return err
+	// }
+
+	envVar := []v1.EnvVar{
+		{Name: "JOB_ID" , Value: job.Spec.JobID},
+		{Name: "BACKEND_NAME", Value: job.Spec.BackendName},
+		{Name: "SHOTS", Value: fmt.Sprintf("%d",job.Spec.Shots)},
+		{Name: "SIMULATOR_IMAGE", Value: job.Spec.SimulatorImage},
+		{Name: "QUANTUM_JOB_NAME", Value: job.Name},
+		{Name: "QUANTUM_JOB_NAMESPACE",Value: job.Namespace},
+		{Name: "IBM_API_KEY", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "ibm-quantum-secret",
+					}, 
+					Key: "api-key",
+				},
+			},
+		},
+		{Name: "IBM_INSTANCE", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "ibm-quantum-secret",
+					}, 
+					Key: "instance",
+				},
+			},
+		},
+		{Name: "REDIS_HOST", ValueFrom: &v1.EnvVarSource{
+			ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "redis-config",
+					},
+					Key : "host",
+				},
+			},
+		},
+		{Name: "REDIS_PORT", ValueFrom: &v1.EnvVarSource{
+			ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "redis-config",
+					},
+					Key : "port",
+				},
+			},
+		},
+	}
 
 
 	pod := &v1.Pod{
@@ -156,33 +222,7 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
 				{
 				Name : "aer-simulator",
 				Image : job.Spec.SimulatorImage,
-				Env : []v1.EnvVar{
-					{Name: "CIRCUITS", Value: job.Spec.Circuits},
-					{Name: "SHOTS", Value: fmt.Sprintf("%d", job.Spec.Shots)},
-					{Name: "BACKEND_NAME", Value: job.Spec.BackendName},
-					{Name: "JOB_ID", Value: job.Spec.JobID},
-					{Name: "QUANTUM_JOB_NAME", Value: job.Name},
-					{Name: "QUANTUM_JOB_NAMESPACE", Value: job.Namespace},
-					{Name: "IBM_API_KEY", ValueFrom: &v1.EnvVarSource{
-						SecretKeyRef : &v1.SecretKeySelector{
-							LocalObjectReference: v1.LocalObjectReference{
-								Name: "ibm-quantum-secret",
-								},
-							Key: "api-key",
-							},
-						},
-					},
-
-					{Name: "IBM_INSTANCE", ValueFrom: &v1.EnvVarSource{
-						SecretKeyRef: &v1.SecretKeySelector{
-							LocalObjectReference: v1.LocalObjectReference{
-								Name : "ibm-quantum-secret",
-								},
-							Key: "instance",
-							},
-						},
-					},
-					},
+				Env : envVar,
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("1"),
@@ -224,7 +264,7 @@ func (r* QuantumAerJobReconciler) createSimulatorPod(ctx context.Context, job *a
 	return nil
 }
 
-func (r* QuantumAerJobReconciler) getForPod(ctx context.Context, job *aerjobv2.QuantumAerJob) (*v1.Pod, error) {
+func (r* QuantumAerJobReconciler) getForPod(ctx context.Context, job *aerjob.QuantumAerJob) (*v1.Pod, error) {
     log := logf.FromContext(ctx)
     
     if job.Status.PodName == "" {
@@ -246,12 +286,12 @@ func (r* QuantumAerJobReconciler) getForPod(ctx context.Context, job *aerjobv2.Q
     return pod, nil
 }
 
-func (r* QuantumAerJobReconciler) handleNewJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+func (r* QuantumAerJobReconciler) handleNewJob(ctx context.Context, job *aerjob.QuantumAerJob)(ctrl.Result, error){
 
 	log := logf.FromContext(ctx)
 	log.Info("Handling a new job", "job name", job.Name)
 
-	job.Status.JobStatus = aerjobv2.Pending
+	job.Status.JobStatus = aerjob.Pending
 	now := metav1.Now()
 	job.Status.StartTime = &now
 	job.Status.Retries = 0 // initialize retries
@@ -263,7 +303,7 @@ func (r* QuantumAerJobReconciler) handleNewJob(ctx context.Context, job *aerjobv
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aerjob.QuantumAerJob)(ctrl.Result, error){
 
 	log := logf.FromContext(ctx)
 	log.Info("Handling Pending Job", "job name", job.Name)
@@ -278,7 +318,7 @@ func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aer
 		return ctrl.Result{Requeue:true}, nil
 	}
 	// set the job status as In progress
-	job.Status.JobStatus = aerjobv2.Progress
+	job.Status.JobStatus = aerjob.Progress
 	if err := r.Status().Update(ctx, job); err != nil {
 		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
 	}
@@ -287,13 +327,13 @@ func (r* QuantumAerJobReconciler) handlePendingJob(ctx context.Context, job *aer
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aerjob.QuantumAerJob)(ctrl.Result, error){
 
 	log := logf.FromContext(ctx)
 	pod, err := r.getForPod(ctx, job)
 
 	if err != nil && errors.IsNotFound(err){
-		job.Status.JobStatus = aerjobv2.Pending
+		job.Status.JobStatus = aerjob.Pending
 		job.Status.PodName = "" // Clear pod name
 		if err := r.Status().Update(ctx, job); err != nil {
 			return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
@@ -319,7 +359,7 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 				}
 
 				job.Status.Retries++
-				job.Status.JobStatus = aerjobv2.Pending
+				job.Status.JobStatus = aerjob.Pending
 				job.Status.PodName = "" // Clear pod name for new pod
 				if err := r.Status().Update(ctx,job); err != nil{
 					return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
@@ -327,7 +367,7 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 				return ctrl.Result{RequeueAfter: FastRequeueDelay}, nil
 			} else {
 				log.Info("Max retries exceeded, marking job as Failed")
-				job.Status.JobStatus = aerjobv2.Failed
+				job.Status.JobStatus = aerjob.Failed
 				job.Status.ErrorMessage = "Job terminated due to consistend Pod failures"
 				now := metav1.Now()
 				job.Status.CompletionTime = &now
@@ -341,7 +381,7 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 			now := metav1.Now()
 			job.Status.CompletionTime = &now
 			log.Info("Pod suceeded,marking job as Completed")
-			job.Status.JobStatus = aerjobv2.Completed
+			job.Status.JobStatus = aerjob.Completed
 
 			if err := r.Status().Update(ctx,job); err != nil{
 					return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
@@ -355,29 +395,11 @@ func (r* QuantumAerJobReconciler) handleRunningJob(ctx context.Context, job *aer
 	return ctrl.Result{}, nil
 }
 
-func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *aerjobv2.QuantumAerJob)(ctrl.Result, error){
+func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *aerjob.QuantumAerJob)(ctrl.Result, error){
 
 	log := logf.FromContext(ctx)
-	// pod, err := r.getForPod(ctx, job)
 
-	// if err != nil && errors.IsNotFound(err){
-	// 	job.Status.JobStatus = aerjobv2.Pending
-	// 	job.Status.PodName = "" // Clear pod name
-	// 	if err := r.Status().Update(ctx, job); err != nil {
-	// 		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
-	// 	}
-	// 	log.Info("Transitioning back to Pending")
-	// 	return ctrl.Result{Requeue: true}, nil
-	// }
-	// if err != nil {
-	// 	if errors.IsNotFound(err){
-	// 		log.Info("Pod already deleted, proceeding to TTL check")
-	// 	}else{
-	// 		return ctrl.Result{RequeueAfter: DefaultRequeueDelay}, err
-	// 	}
-	// }
-
-	if job.Status.JobStatus == aerjobv2.Completed || job.Status.JobStatus == aerjobv2.Failed {
+	if job.Status.JobStatus == aerjob.Completed || job.Status.JobStatus == aerjob.Failed {
 
 		log.Info("Job in terminal state, cleaning up the pods")
 
@@ -439,12 +461,10 @@ func (r *QuantumAerJobReconciler) handleTerminalJob(ctx context.Context, job *ae
 	return ctrl.Result{}, nil
 }
 
-
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *QuantumAerJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&aerjobv2.QuantumAerJob{}).
+		For(&aerjob.QuantumAerJob{}).
 		Owns(&v1.Pod{}).
 		Named("quantumaerjob").
 		Complete(r)

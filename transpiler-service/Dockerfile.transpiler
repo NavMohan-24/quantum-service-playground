@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY transpiler-service/requirements.txt requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY transpiler-service/transpiler_service.py transpiler_service.py 
+
+COPY utils /app/utils
+
+EXPOSE 5002
+
+CMD ["python", "transpiler_service.py"]

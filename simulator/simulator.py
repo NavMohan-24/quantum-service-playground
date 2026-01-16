@@ -5,6 +5,8 @@ from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 from qiskit_ibm_runtime.utils import RuntimeEncoder
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
+from utils.redisDB import RedisDB
+
 
 def load_kube_config():
     """
@@ -52,17 +54,19 @@ def init_ibm_service():
         service = None
 
 
+
 def get_env_vars():
     """
     Extract env variables to run the job
     """
     return {
-        'circuits': os.getenv('CIRCUITS'),
         'shots': int(os.getenv('SHOTS', '1024')),
-        'backend_name': os.getenv('BACKEND_NAME', 'aer-simulator'),
-        'job_id': os.getenv('JOB_ID', 'unknown'),
+        'backend_name': os.getenv('BACKEND_NAME','aer-simulator'),
+        'job_id': os.getenv('JOB_ID'),
         'quantum_job_name': os.getenv('QUANTUM_JOB_NAME'),
-        'quantum_job_namespace': os.getenv('QUANTUM_JOB_NAMESPACE', 'default')
+        'quantum_job_namespace': os.getenv('QUANTUM_JOB_NAMESPACE', 'default'),
+        'redis_host' : os.getenv("REDIS_HOST"),
+        'redis_port' : os.getenv("REDIS_PORT")
     }
 
 def deserialize_circuits(circuits_b64):
@@ -121,7 +125,7 @@ def run_simulation(circuits, shots, backend_name):
     print("✅ Simulation completed successfully")
     return results
 
-def update_quantum_job_status(namespace, name, result_b64, success = True, error_message = None):
+def update_quantum_job_status(namespace, name, success = True, error_message = None):
     """
     Update Quantum Job Status.
         - updates results, JobStatus and error message (if any) 
@@ -137,14 +141,13 @@ def update_quantum_job_status(namespace, name, result_b64, success = True, error
 
         status_body = {
             "status": {
-                "result" : result_b64 if success else "",
                 "errorMessage": error_message if not success else "",
             } 
         }
 
         api.patch_namespaced_custom_object_status(
             group = "aerjob.nav.io",
-            version= "v2",
+            version= "v3",
             namespace= namespace,
             plural = "quantumaerjobs",
             name = name,
@@ -166,24 +169,32 @@ def main():
 
     try:
         load_kube_config()
-        
         # Get environment variables
         config_vars = get_env_vars()
+
         print(f"📋 Job ID: {config_vars['job_id']}")
         print(f"📋 Backend: {config_vars['backend_name']}")
         print(f"📋 Shots: {config_vars['shots']}")
-        print(f"📋 Target CR: {config_vars['quantum_job_namespace']}/{config_vars['quantum_job_name']}")
+        print(f"📋 Redis Host: {config_vars['redis_host']}")
+        print(f"📋 Redis Port: {config_vars['redis_port']}")
+
+        # initialize the redis instance
+        redis_client = RedisDB(redis_host=config_vars["redis_host"],
+                               redis_port= config_vars["redis_port"])
 
         # Validate
-        if not config_vars["circuits"]:
-            raise ValueError("CIRCUITS environment variable is required.")
+        job_data = redis_client.get_job_data(config_vars["job_id"])
+        circuits_b64 = job_data.get("circuit", None)
+        
+        if not circuits_b64:
+            raise ValueError(f"Job data not found in databse for key: {config_vars["job_id"]}")
         if not config_vars["quantum_job_name"]:
             raise ValueError("QUANTUM_JOB_NAME environment variable is required.")
         if not config_vars["job_id"]:
             raise ValueError("Job_ID environment variable is required.")
-
+        
         # Deserialize circuits
-        circuits = deserialize_circuits(config_vars['circuits'])
+        circuits = deserialize_circuits(circuits_b64)
 
         # Run simulation
         results = run_simulation(
@@ -194,16 +205,18 @@ def main():
 
         # Serialize result
         result_b64 = serialize_results(results=results)
-        print(f"Result Size: {len(result_b64)} bytes (base64)")
 
         # Update QuantumJob CR
         update_quantum_job_status(
             config_vars['quantum_job_namespace'], 
-            config_vars['quantum_job_name'], 
-            result_b64, 
+            config_vars['quantum_job_name'],  
             success= True, 
             error_message=None
         )
+
+        # write back result to redis
+        job_data['results'] = result_b64
+        redis_client.update_job_data(config_vars["job_id"], job_data)
 
         print("="*60)
         print("✅ Job completed successfully")
@@ -224,7 +237,6 @@ def main():
                 update_quantum_job_status(
                     config_vars["quantum_job_namespace"], 
                     config_vars["quantum_job_name"],
-                    "",
                     success=False,
                     error_message= error_msg[:1000] # Limit error
                 )

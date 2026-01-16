@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: default
+data:
+  host : "redis-service"
+  port : "6379"
+  # stores the configuration in redis.conf file
+  redis.conf: |
+    maxmemory 256mb
+    maxmemory-policy allkeys-lru
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command:
+          # sets redis-server /etc/redis/redis.conf as entry point
+          # load its configuration from redis.conf instead of using 
+          # its default internal setting
+          - redis-server
+          - /etc/redis/redis.conf
+        volumeMounts:
+          # sets /etc/redis as mount point
+          - name: config
+            mountPath: /etc/redis
+      volumes:
+      # stores conf file in /etc/redis/redis.conf path
+      - name: config
+        configMap:
+          name: redis-config
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: default
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP

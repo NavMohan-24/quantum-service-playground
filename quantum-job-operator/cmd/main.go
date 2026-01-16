@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	aerjobv2 "quantum/Aerjob/api/v2"
+	aerjobv3 "quantum/Aerjob/api/v3"
 	"quantum/Aerjob/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,7 +48,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(aerjobv2.AddToScheme(scheme))
+	utilruntime.Must(aerjobv3.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

@@ -1,4 +1,4 @@
-apiVersion: aerjob.nav.io/v2
+apiVersion: aerjob.nav.io/v3
 kind: QuantumAerJob
 metadata:
   labels:

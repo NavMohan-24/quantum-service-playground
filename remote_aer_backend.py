@@ -39,7 +39,7 @@ class RemoteAerJob(Job):
                 
                 if response.status_code == 200:
                     status = response.json()
-                    state = status.get('state', '')
+                    state = status.get('jobStatus', '')
                     
                     if state == 'completed':
                         # Get result

@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy application code
 COPY simulator/simulator.py simulator.py
 
+COPY utils /app/utils
 
 # Run as non-root user
 # Create a new user named "Simulator" with UID 1000

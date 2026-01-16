@@ -32,6 +32,18 @@ spec:
           name: ibm-quantum-secret
           key:  instance
           optional: true
+    
+    - name: REDIS_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: redis-config
+          key: host
+    
+    - name: REDIS_PORT
+      valueFrom:
+        configMapKeyRef:
+          name: redis-config
+          key: port
 
     resources:
       requests: # minimum required resources

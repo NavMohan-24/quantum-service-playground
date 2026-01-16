@@ -16,6 +16,6 @@ resources:
   domain: nav.io
   group: aerjob
   kind: QuantumAerJob
-  path: quantum/Aerjob/api/v2
-  version: v2
+  path: quantum/Aerjob/api/v3
+  version: v3
 version: "3"

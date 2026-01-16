@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quantumjob-operator
-  newTag: v2
+  newTag: v3

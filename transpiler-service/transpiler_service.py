@@ -13,12 +13,18 @@ from qiskit_ibm_runtime.utils import RuntimeEncoder, RuntimeDecoder
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
+from utils.redisDB import RedisDB
 
+
+##=============INTIALISING REDIS=================
 
 app = Flask(__name__)
 
 IBM_API_KEY = os.getenv('IBM_API_KEY')
 IBM_INSTANCE = os.getenv('IBM_INSTANCE')
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+
 SIMULATOR_IMAGE = os.getenv('SIMULATOR_IMAGE', 'aer-simulator:v3')
 K8S_NAMESPACE = os.getenv('K8S_NAMESPACE', 'default')
 JOB_TIMEOUT = int(os.getenv('JOB_TIMEOUT', '600'))
@@ -26,7 +32,6 @@ MAX_RETRIES = int(os.getenv('MAX_RETRIES', '3'))
 DEFAULT_TTL = int(os.getenv('DEFAULT_TTL_SECONDS', '300'))
 
 service = None
-
 def init_ibm_service():
     global service
     if service is not None:  
@@ -67,10 +72,12 @@ def load_kube_config():
 # Initialize on startup
 init_ibm_service()
 load_kube_config()
+redis_client = RedisDB(redis_host=REDIS_HOST, redis_port=REDIS_PORT)
 k8s_api = client.CustomObjectsApi()
-
 print("Initialized Transpiler Service : ✅ ")
 
+
+##========== HELPER FUNCTIONS =======================
 def deserialize_circuits(circuits_b64):
     """
     Deserialize the base64 encoded quantum circuit
@@ -103,10 +110,12 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
 
     job_name = f"qjob-{job_ID}"
 
+    redis_client.create_job_data(job_id=job_ID, circuit=circuits_b64)
+    print(f"📝 Stored circuit in DB: {job_ID}")
+
     quantum_job_spec = {
         "backendName": backend_name,
         "shots" : shots,
-        "circuits" : circuits_b64,
         "simulatorImage": SIMULATOR_IMAGE,
         "jobID" : job_ID,
         "maxRetries": MAX_RETRIES,
@@ -118,7 +127,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
         quantum_job_spec['resources'] = resources
     
     quantum_job = {
-        "apiVersion" : "aerjob.nav.io/v2",
+        "apiVersion" : "aerjob.nav.io/v3",
         "kind" : "QuantumAerJob",
         "metadata": {
             "name" : job_name,
@@ -137,7 +146,7 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
     try:
         k8s_api.create_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace=K8S_NAMESPACE,
             plural = "quantumaerjobs",
             body = quantum_job)
@@ -160,7 +169,7 @@ def get_quantum_job_status(job_ID):
     try:
         job = k8s_api.get_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace= K8S_NAMESPACE,
             plural= "quantumaerjobs",
             name = job_name
@@ -184,7 +193,7 @@ def delete_quantum_job(job_name):
     try:
         k8s_api.delete_namespaced_custom_object(
             group = "aerjob.nav.io",
-            version = "v2",
+            version = "v3",
             namespace= K8S_NAMESPACE,
             name = job_name,
             plural= "quantumaerjobs"
@@ -193,7 +202,7 @@ def delete_quantum_job(job_name):
     except Exception as e:
         print(f"⚠️ failed to delete the job {job_name}: {e}")
     
-
+##=========== ENDPOINTS =============================
 @app.route("/health")
 def health():
     return jsonify({
@@ -225,7 +234,7 @@ def transpile():
             target = AerSimulator().target    
         else:
             target = service.backend(name=backend_name).target
-        
+         
         pm = generate_preset_pass_manager(optimization_level=3, target=target)
         isa_circuits = pm.run(circuits)
 
@@ -235,7 +244,7 @@ def transpile():
             isa_circuit_bytes = fptr.getvalue()
             isa_circuit_b64 = base64.b64encode(isa_circuit_bytes).decode("utf-8")
 
-        job_name, job_id = create_quantum_job(isa_circuit_b64,shots, backend_name, job_id, resources)
+        job_name, job_id = create_quantum_job(isa_circuit_b64, shots, backend_name, job_id, resources)
 
         return jsonify({
             "status" : "accepted",
@@ -286,22 +295,22 @@ def get_job_result_endpoint(job_ID):
     try:
         status = get_quantum_job_status(job_ID)
         
-        if status.get("state") != "completed":
+        if status.get("jobStatus") != "completed":
             return jsonify({
                 "error": "Job not completed",
                 "status": status.get("state", "unknown")
             }), 400
         
-        result_b64 = status.get("result", "")
-        
+        # result_b64 = status.get("result", "")
+        job_data = redis_client.get_job_data(job_id=job_ID)
         return jsonify({
             "status": "success",
-            "result": result_b64
+            "result": job_data.get("results",None)
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
-
+##==========MAIN FUNCTION=========================
 if __name__ == '__main__':
     print("🚀 Starting Transpiler Service on port 5002...")
     app.run(host='0.0.0.0', port=5002)

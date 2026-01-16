@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2
+package v3
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,11 +36,6 @@ type QuantumAerJobSpec struct {
 	// +kubebuilder:default:=1024
 	// +kubebuilder:validation:Minimum:=1
 	Shots int32 `json:"shots,omitempty"`
-	
-	// Circuits is a string representation of the quantum circuits to execute.
-	// This should be a base64-encoded QPY serialized circuit.
-	// +kubebuilder:validation:Required
-	Circuits string `json:"circuits"`
 
 	// SimulatorImage contains the image for simulator
 	// +kubebuilder:validation:Required
@@ -116,11 +111,7 @@ type QuantumAerJobStatus struct {
 
 	// JobStatus is the current state of the Job
 	// +optional
-	JobStatus JobState `json:"state,omitempty"`
-
-	// Result is the base64-encoded execution result
-	// +optional
-	Result string `json:"result,omitempty"`
+	JobStatus JobState `json:"jobStatus,omitempty"`
 
 	// ErrorMessage contains error details if the job failed
 	// +optional
@@ -146,7 +137,7 @@ type QuantumAerJobStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status 
-// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.jobStatus`
 // +kubebuilder:printcolumn:name="Backend",type=string,JSONPath=`.spec.backendName`
 // +kubebuilder:printcolumn:name="Retries",type=integer,JSONPath=`.status.retries`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
@@ -158,7 +149,7 @@ type QuantumAerJob struct {
 
 	// metadata is a standard object metadata
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec defines the desired state of QuantumAerJob
 	// +required
@@ -166,15 +157,14 @@ type QuantumAerJob struct {
 
 	// status defines the observed state of QuantumAerJob
 	// +optional
-	Status QuantumAerJobStatus `json:"status,omitzero"`
+	Status QuantumAerJobStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-
 // QuantumAerJobList contains a list of QuantumAerJob
 type QuantumAerJobList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitzero"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []QuantumAerJob `json:"items"`
 }
 
