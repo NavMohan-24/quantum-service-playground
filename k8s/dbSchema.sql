@@ -8,7 +8,8 @@ CREATE TABLE quantum_jobs(
 
     -- circuit properties
     circuit_depth INTEGER,
-    gate_count INTEGER, 
+    one_q_gate_count INTEGER, 
+    two_q_gate_count INTEGER, 
 
     -- staus of job
     status VARCHAR(50) NOT NULL, 
