@@ -15,13 +15,13 @@ CREATE TABLE quantum_jobs(
     status VARCHAR(50) NOT NULL, 
 
     -- time stamps
-    submitted_at TIMESTAMP DEFAULT NOW(), 
-    transpilation_start_at TIMESTAMP,
-    transpilation_end_at TIMESTAMP,
-    cr_created_at TIMESTAMP,
-    qpu_start_at TIMESTAMP,
-    qpu_end_at TIMESTAMP,
-    completed_at TIMESTAMP, 
+    submitted_at TIMESTAMPTZ DEFAULT NOW(), 
+    transpile_start_at TIMESTAMPTZ,
+    transpile_end_at TIMESTAMPTZ,
+    cr_created_at TIMESTAMPTZ,
+    qpu_start_at TIMESTAMPTZ,
+    qpu_end_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ, 
 
     -- Durations (milliseconds)
     transpilation_duration_ms INTEGER,
