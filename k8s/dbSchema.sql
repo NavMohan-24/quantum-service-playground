@@ -25,8 +25,8 @@ CREATE TABLE quantum_jobs(
 
     -- Durations (milliseconds)
     transpilation_duration_ms INTEGER,
-    simulation_duration_ms INTEGER,
-    total_duration_ms INTEGER,
+    qpu_runtime_ms INTEGER,
+    total_runtime_ms INTEGER,
 
     -- Additional metadata
     error_message TEXT,
