@@ -230,10 +230,3 @@ class MetricsDB:
         
     
 
-if __name__ == "__main__":
-
-    metricsdb = MetricsDB()
-    metricsdb.create_job(job_id='qjob-001', backend_name="ibm_fez", shots=1024)
-    time.sleep(2)
-    metricsdb.update_transpiler_start(job_id='qjob-001')
-    print("✅ Job updated to transpiling!")
