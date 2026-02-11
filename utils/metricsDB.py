@@ -24,7 +24,6 @@ class MetricsDB:
         try:
             self.conn = psycopg2.connect(**self.conn_params)
             self.conn.autocommit = True
-        
         except Exception as e:
             raise RuntimeError(f"❌ Failed to connect to PostgreSQL: {e}")
     
@@ -165,6 +164,70 @@ class MetricsDB:
             }
             cur.execute(query,params)
 
+    
+    def update_job_failed(self, job_id, error_message):
+        """ Mark job as failed"""
+
+        with self.get_cursor() as cur:
+
+            query = """
+            UPDATE quantum_jobs
+            SET status = 'failed',
+                error_message = %(error)s,
+                completed_at = %(time)s,
+                total_runtime_ms = EXTRACT(EPOCH FROM (%(time)s - submitted_at)) * 1000
+            WHERE job_id = %(job_id)s
+            """
+
+            params = {
+                'job_id' : job_id,
+                'error' : error_message[:1000] if error_message else "Unknown error",
+                'time' : datetime.now(tz=timezone.utc)
+            }
+            cur.execute(query,params)
+    
+    def record_resource_metrics(self, job_id, metric_name, metric_value, labels = None):
+        """ Get all metrics for a specific job"""
+
+        with self.get_cursor() as cur:
+            
+            query = """
+            UPDATE resource_metrics
+            SET metric_name = %(name)s,
+                metric_value = %(value)s,
+                labels = %(label)s
+            WHERE job_id = %(job_id)s
+            """
+
+            params = {
+                "job_id" : job_id,
+                "name": metric_name,
+                "value": metric_value,
+                "label" : Json(labels or {})
+            }
+
+            cur.execute(query, params)
+
+    def get_job_metrics(self, job_id):
+        """ Get all metrics for a specific job"""
+        with self.get_cursor() as cur:
+            
+            query = """
+            SELECT * FROM quantum_jobs WHERE job_id = %(job_id)s
+            """
+            params = {
+                "job_id" : job_id,
+            }
+            cur.execute(query, params)
+
+            return cur.fetchone()
+    
+    def close(self):
+        """ Close database connection"""
+        if self.conn and not self.conn.closed:
+            self.conn.close()
+            print("✅ Closed PostgreSQL connection")
+        
     
 
 if __name__ == "__main__":
