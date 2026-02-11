@@ -24,11 +24,9 @@ class MetricsDB:
         try:
             self.conn = psycopg2.connect(**self.conn_params)
             self.conn.autocommit = True
-            print("✅ Connected to PostgreSQL metrics database")
         
         except Exception as e:
-            print("❌ Failed to connect to PostgreSQL: {e}")
-            raise
+            raise RuntimeError(f"❌ Failed to connect to PostgreSQL: {e}")
     
     @contextmanager
     def get_cursor(self):
@@ -94,7 +92,7 @@ class MetricsDB:
                 transpilation_duration_ms = %(duration)s,
                 circuit_depth = COALESCE(%(depth)s, circuit_depth),
                 one_q_gate_count = COALESCE(%(q1)s, one_q_gate_count),
-                two_q_gate_count = COALESCE(%(q2)s, two_q_gate_count),
+                two_q_gate_count = COALESCE(%(q2)s, two_q_gate_count)
             WHERE job_id = %(job_id)s
             """
         
@@ -118,7 +116,7 @@ class MetricsDB:
             query = """
             UPDATE quantum_jobs
             SET status = 'in progress',
-                qpu_start_at = %(time)s,
+                qpu_start_at = %(time)s
             WHERE job_id = %(job_id)s
             """
 
