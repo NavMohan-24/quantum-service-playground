@@ -18,7 +18,7 @@ CREATE TABLE quantum_jobs(
     submitted_at TIMESTAMPTZ DEFAULT NOW(), 
     transpile_start_at TIMESTAMPTZ,
     transpile_end_at TIMESTAMPTZ,
-    cr_created_at TIMESTAMPTZ,
+    -- cr_created_at TIMESTAMPTZ,
     qpu_start_at TIMESTAMPTZ,
     qpu_end_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ, 
@@ -30,6 +30,8 @@ CREATE TABLE quantum_jobs(
 
     -- Additional metadata
     error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    pod_name VARCHAR(255),
 
     -- Indexes
     created_at TIMESTAMP DEFAULT NOW()
