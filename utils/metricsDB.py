@@ -126,8 +126,29 @@ class MetricsDB:
             }
 
             cur.execute(query, params)
+        
+    def update_simulation_complete(self, job_id, pod_name = None):
+        """ Mark simulation completed"""
+        
+        with self.get_cursor() as cur:
+
+            query = """
+            UPDATE quantum_jobs
+            SET qpu_end_at = %(time)s,
+                qpu_runtime_ms = EXTRACT(EPOCH FROM (%(time)s - qpu_start_at))*1000,
+                pod_name = COALESCE(%(pod)s, pod_name)
+            WHERE job_id = %(job_id)s
+            """
+            params = {
+                "job_id" : job_id,
+                "pod" : pod_name,
+                "time" : datetime.now(tz=timezone.utc)
+            }
+
+            cur.execute(query, params)
     
     def update_job_complete(self, job_id):
+        """ Mark job as completed"""
 
         with self.get_cursor() as cur:
 
@@ -135,7 +156,7 @@ class MetricsDB:
             UPDATE quantum_jobs
             SET status = 'completed',
                 completed_at = %(time)s,
-                total_duration_ms = EXTRACT(EPOCH FROM (%(time)s - submitted_at)) * 1000
+                total_runtime_ms = EXTRACT(EPOCH FROM (%(time)s - submitted_at)) * 1000
             WHERE job_id = %(job_id)s
             """
             params = {
