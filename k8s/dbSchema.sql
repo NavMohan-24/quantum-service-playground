@@ -34,7 +34,7 @@ CREATE TABLE quantum_jobs(
     pod_name VARCHAR(255),
 
     -- Indexes
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_job_status ON quantum_jobs(status);
@@ -44,7 +44,7 @@ CREATE INDEX idx_completed_at ON quantum_jobs(completed_at);
 
 CREATE TABLE resource_metrics(
     id serial PRIMARY KEY,
-    timestamp TIMESTAMP DEFAULT NOW(),
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
     metric_name VARCHAR(100) NOT NULL,
     metric_value FLOAT NOT NULL,
     labels JSONB,
@@ -53,8 +53,8 @@ CREATE TABLE resource_metrics(
 CREATE INDEX idx_resource_timestamp ON resource_metrics(timestamp);
 CREATE INDEX idx_metric_name ON resource_metrics(metric_name);
 
-SELECT 'Quantum Jobs' AS label;
-SELECT * FROM quantum_jobs;
+-- SELECT 'Quantum Jobs' AS label;
+-- SELECT * FROM quantum_jobs;
 
-SELECT 'Resource Metrics' AS label;
-SELECT * FROM resource_metrics;
+-- SELECT 'Resource Metrics' AS label;
+-- SELECT * FROM resource_metrics;
