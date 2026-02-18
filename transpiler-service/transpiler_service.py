@@ -16,7 +16,7 @@ from kubernetes import client, config
 from utils.redisDB import RedisDB
 
 
-##=============INTIALISING REDIS=================
+##=============INTIALISING =================
 
 app = Flask(__name__)
 
