@@ -1,6 +1,5 @@
 import io
 import base64
-import json
 import os
 import sys
 import uuid
@@ -13,6 +12,7 @@ from qiskit_ibm_runtime.utils import RuntimeEncoder, RuntimeDecoder
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer import AerSimulator
 from kubernetes import client, config
+from utils.metricsDB import MetricsDB
 from utils.redisDB import RedisDB
 
 
@@ -73,6 +73,7 @@ def load_kube_config():
 init_ibm_service()
 load_kube_config()
 redis_client = RedisDB(redis_host=REDIS_HOST, redis_port=REDIS_PORT)
+metrics_client = MetricsDB()
 k8s_api = client.CustomObjectsApi()
 print("Initialized Transpiler Service : ✅ ")
 
@@ -223,20 +224,40 @@ def transpile():
         backend_name = data.get("backend_name", "aer-simulator")
         job_id = data.get("job_id", None)
         resources = data.get('resources', None)
+        
+        # create a job entry in metrics db (move it to worker)
+        metrics_client.create_job_entry(job_id=job_id, backend_name=backend_name, shots=shots)
 
         if not circuits_b64:
             return jsonify({"Transpiler error": "No circuits provided"}), 400
         
+        # circuit deserialization
         circuits = deserialize_circuits(circuits_b64)
-    
         
+        # setting up the transpiler
         if backend_name == "aer-simulator" or not service:
             target = AerSimulator().target    
         else:
             target = service.backend(name=backend_name).target
          
         pm = generate_preset_pass_manager(optimization_level=3, target=target)
+        metrics_client.update_transpiler_start(job_id)
+
+        # transpilation
+        start = time.perf_counter()
         isa_circuits = pm.run(circuits)
+        end = time.perf_counter()
+        duration_seconds = end - start
+        duration_ms = duration_seconds * 1000
+
+        # circuit metrics
+        two_qubit_ops =  [circuit.count_ops().get('cz',0) + circuit.count_ops().get('ecr',0) + circuit.count_ops().get('cx',0) for circuit in isa_circuits]
+        other_ops = [circuit.count_ops().get('measure',0) + circuit.count_ops().get('barrier', 0) + circuit.count_ops().get('if_else', 0) for circuit in isa_circuits]
+        one_qubit_ops = [sum(circuit.count_ops().values()) - twoq_ops - o_ops for  circuit, twoq_ops, o_ops in zip(isa_circuits,two_qubit_ops,other_ops)]
+        circuit_depth = [circuit.depth() for circuit in isa_circuits]
+
+        # updating the metrics db
+        metrics_client.update_transpile_complete(job_id, duration_ms=duration_ms, circuit_depth=circuit_depth, two_q_gate_count=two_qubit_ops, one_q_gate_count=one_qubit_ops)
 
         # serialize the circuit
         with io.BytesIO() as fptr:
@@ -244,6 +265,7 @@ def transpile():
             isa_circuit_bytes = fptr.getvalue()
             isa_circuit_b64 = base64.b64encode(isa_circuit_bytes).decode("utf-8")
 
+        # create quantum job cr
         job_name, job_id = create_quantum_job(isa_circuit_b64, shots, backend_name, job_id, resources)
 
         return jsonify({
@@ -254,6 +276,7 @@ def transpile():
              }), 202  
 
     except Exception as e:
+        metrics_client.update_job_failed(job_id=job_id, error_message=str(e))
         return jsonify({
             "status": "failed",
             "job_id": "",
