@@ -111,9 +111,6 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
 
     job_name = f"qjob-{job_ID}"
 
-    redis_client.create_job_data(job_id=job_ID, circuit=circuits_b64)
-    print(f"📝 Stored circuit in DB: {job_ID}")
-
     quantum_job_spec = {
         "backendName": backend_name,
         "shots" : shots,
@@ -151,8 +148,13 @@ def create_quantum_job(circuits_b64, shots, backend_name, job_ID, resources = No
             namespace=K8S_NAMESPACE,
             plural = "quantumaerjobs",
             body = quantum_job)
-
+        
         print(f"✅ QuantumJob {job_name} created")
+
+        redis_client.create_job_data(job_id=job_ID, circuit=circuits_b64)
+        print(f"📝 Job details stored in Redis DB: {job_ID}")
+
+        
         return job_name, job_ID
     
     except Exception as e:
