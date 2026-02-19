@@ -44,7 +44,7 @@ class MetricsDB:
         finally:
             cursor.close()
     
-    def create_job(self, job_id, backend_name, shots, circuit_depth=None, one_q_gate_count=None, two_q_gate_count = None):
+    def create_job_entry(self, job_id, backend_name, shots, circuit_depth=None, one_q_gate_count=None, two_q_gate_count = None):
         """ Create initial job entry when submitted"""
         with self.get_cursor() as cur:
 
