@@ -24,6 +24,7 @@ class MetricsDB:
         try:
             self.conn = psycopg2.connect(**self.conn_params)
             self.conn.autocommit = True
+            print(f"✅ Connected to PostgreSQL at {self.conn_params.get('host')}:{self.conn_params.get('port')}")
         except Exception as e:
             raise RuntimeError(f"❌ Failed to connect to PostgreSQL: {e}")
     
@@ -43,7 +44,7 @@ class MetricsDB:
         finally:
             cursor.close()
     
-    def create_job(self, job_id, backend_name, shots, circuit_depth=None, one_q_gate_count=None, two_q_gate_count = None):
+    def create_job_entry(self, job_id, backend_name, shots, circuit_depth=None, one_q_gate_count=None, two_q_gate_count = None):
         """ Create initial job entry when submitted"""
         with self.get_cursor() as cur:
 

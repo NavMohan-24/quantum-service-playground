@@ -6,8 +6,8 @@ data:
   init.sql: "DROP TABLE IF EXISTS resource_metrics; -- drop child table first\nDROP
     TABLE IF EXISTS quantum_jobs;\n\nCREATE TABLE quantum_jobs(\n    job_id VARCHAR(50)
     PRIMARY KEY,\n    backend_name VARCHAR(50) NOT NULL,\n    shots INTEGER NOT NULL,\n\n
-    \   -- circuit properties\n    circuit_depth INTEGER,\n    one_q_gate_count INTEGER,
-    \n    two_q_gate_count INTEGER, \n\n    -- staus of job\n    status VARCHAR(50)
+    \   -- circuit properties\n    circuit_depth INTEGER[],\n    one_q_gate_count INTEGER[],
+    \n    two_q_gate_count INTEGER[], \n\n    -- staus of job\n    status VARCHAR(50)
     NOT NULL, \n\n    -- time stamps\n    submitted_at TIMESTAMPTZ DEFAULT NOW(),
     \n    transpile_start_at TIMESTAMPTZ,\n    transpile_end_at TIMESTAMPTZ,\n    --
     cr_created_at TIMESTAMPTZ,\n    qpu_start_at TIMESTAMPTZ,\n    qpu_end_at TIMESTAMPTZ,\n
@@ -26,6 +26,17 @@ data:
     Jobs' AS label;\n-- SELECT * FROM quantum_jobs;\n\n-- SELECT 'Resource Metrics'
     AS label;\n-- SELECT * FROM resource_metrics;"
 
+---  
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  host: "postgres-service"
+  port : "5432"
+  db_name: quantum_jobs
+  user: quantum-user
 
 ---
 apiVersion: v1
@@ -46,9 +57,7 @@ metadata:
   name: postgres-secret
 type: Opaque
 stringData:
-  POSTGRES_DB: quantum_metrics
-  POSTGRES_USER: quantum
-  POSTGRES_PASSWORD: quantum-advantage
+  password: quantum-advantage
 
 ---
 apiVersion: apps/v1
@@ -73,9 +82,22 @@ spec:
           image: postgres:15
           ports:
             - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: postgres-secret
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: user  
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: db_name
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
@@ -88,13 +110,13 @@ spec:
             claimName: postgres-pvc
         - name: init-script
           configMap: 
-            name: postgres-init-schema    
+            name: postgres-init-schema
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: postgres-service
 spec:
   selector: 
     app : postgres

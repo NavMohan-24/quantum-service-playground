@@ -33,9 +33,9 @@ except Exception as e:
     raise RuntimeError(f"❌ Failed to update transpiler start: {e}")
 
 try:
-    metricsdb.update_transpile_complete(job_id="qjob-001", duration_ms= 100, circuit_depth= 500, one_q_gate_count= 1234, two_q_gate_count= 298)
-    metricsdb.update_transpile_complete(job_id="qjob-002", duration_ms= 252, circuit_depth= 256, one_q_gate_count= 121, two_q_gate_count= 154)
-    metricsdb.update_transpile_complete(job_id="qjob-003", duration_ms= 50, circuit_depth= 100, one_q_gate_count= 145, two_q_gate_count= 20)
+    metricsdb.update_transpile_complete(job_id="qjob-001", duration_ms= 100, circuit_depth= [500,200], one_q_gate_count= [1234,244], two_q_gate_count= [298,213])
+    metricsdb.update_transpile_complete(job_id="qjob-002", duration_ms= 252, circuit_depth= [256,2445], one_q_gate_count= [121,200], two_q_gate_count= [154,100])
+    metricsdb.update_transpile_complete(job_id="qjob-003", duration_ms= 50, circuit_depth= [100], one_q_gate_count= [145], two_q_gate_count= [20])
 
     print("✅ Update transpile complete time..")
 
