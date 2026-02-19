@@ -24,6 +24,7 @@ class MetricsDB:
         try:
             self.conn = psycopg2.connect(**self.conn_params)
             self.conn.autocommit = True
+            print(f"✅ Connected to PostgreSQL at {self.conn_params.get('host')}:{self.conn_params.get('port')}")
         except Exception as e:
             raise RuntimeError(f"❌ Failed to connect to PostgreSQL: {e}")
     
