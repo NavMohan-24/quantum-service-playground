@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-schema
+data:
+  init.sql: "DROP TABLE IF EXISTS resource_metrics; -- drop child table first\nDROP
+    TABLE IF EXISTS quantum_jobs;\n\nCREATE TABLE quantum_jobs(\n    job_id VARCHAR(50)
+    PRIMARY KEY,\n    backend_name VARCHAR(50) NOT NULL,\n    shots INTEGER NOT NULL,\n\n
+    \   -- circuit properties\n    circuit_depth INTEGER[],\n    one_q_gate_count INTEGER[],
+    \n    two_q_gate_count INTEGER[], \n\n    -- staus of job\n    status VARCHAR(50)
+    NOT NULL, \n\n    -- time stamps\n    submitted_at TIMESTAMPTZ DEFAULT NOW(),
+    \n    transpile_start_at TIMESTAMPTZ,\n    transpile_end_at TIMESTAMPTZ,\n    --
+    cr_created_at TIMESTAMPTZ,\n    qpu_start_at TIMESTAMPTZ,\n    qpu_end_at TIMESTAMPTZ,\n
+    \   completed_at TIMESTAMPTZ, \n\n    -- Durations (milliseconds)\n    transpilation_duration_ms
+    INTEGER,\n    qpu_runtime_ms INTEGER,\n    total_runtime_ms INTEGER,\n\n    --
+    Additional metadata\n    error_message TEXT,\n    retry_count INTEGER DEFAULT
+    0,\n    pod_name VARCHAR(255),\n\n    -- Indexes\n    created_at TIMESTAMPTZ DEFAULT
+    NOW()\n);\n\nCREATE INDEX idx_job_status ON quantum_jobs(status);\nCREATE INDEX
+    idx_backend ON quantum_jobs(backend_name);\nCREATE INDEX idx_submitted_at ON quantum_jobs(submitted_at);\nCREATE
+    INDEX idx_completed_at ON quantum_jobs(completed_at);\n\nCREATE TABLE resource_metrics(\n
+    \   id serial PRIMARY KEY,\n    timestamp TIMESTAMPTZ DEFAULT NOW(),\n    metric_name
+    VARCHAR(100) NOT NULL,\n    metric_value FLOAT NOT NULL,\n    labels JSONB,\n
+    \   job_id VARCHAR(50) REFERENCES quantum_jobs(job_id) ON DELETE CASCADE -- setting
+    up foriegn key\n);\nCREATE INDEX idx_resource_timestamp ON resource_metrics(timestamp);\nCREATE
+    INDEX idx_metric_name ON resource_metrics(metric_name);\n\n-- SELECT 'Quantum
+    Jobs' AS label;\n-- SELECT * FROM quantum_jobs;\n\n-- SELECT 'Resource Metrics'
+    AS label;\n-- SELECT * FROM resource_metrics;"
+
+---  
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  host: "postgres-service"
+  port : "5432"
+  db_name: quantum_jobs
+  user: quantum-user
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+stringData:
+  password: quantum-advantage
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: default
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app : postgres
+    
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: user  
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: db_name
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init-script
+          configMap: 
+            name: postgres-init-schema
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  selector: 
+    app : postgres
+  ports:  
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
